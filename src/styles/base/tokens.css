@@ -1,0 +1,185 @@
+/* =========================================================================
+   Design tokens, resets, and global utility classes.
+   Loaded once, globally (see src/main.tsx). Every page depends on these
+   CSS custom properties, so this file must load before any component or
+   page-specific stylesheet.
+   ========================================================================= */
+.year-switcher-readonly .year-readonly-value { margin-left: auto; color: var(--ink-900); font-size: 14px; }
+.year-switcher-readonly .year-current-badge { display: inline-flex; }
+/* =========================================================================
+   San Roque Elementary School — Realtime Enrollment Dashboard
+   Shared stylesheet. Design tokens live at the top as CSS custom properties
+   so every page (login, dashboard, masterlist, program pages, reports,
+   manage users) stays visually consistent from one file.
+   ========================================================================= */
+
+:root {
+  /* ---- Color tokens -------------------------------------------------- */
+  --navy-900: #10254a;      /* header / sidebar base */
+  --navy-800: #16305f;
+  --blue-600: #2f6fed;      /* primary action / links */
+  --blue-500: #4a86ff;
+  --blue-100: #e8f0fe;
+
+  --bg-app: #f3f5f9;        /* page background */
+  --bg-card: #ffffff;
+
+  --ink-900: #16213a;       /* headings */
+  --ink-700: #3a4358;       /* body text */
+  --ink-500: #6b7690;       /* muted / secondary text */
+  --ink-300: #a7b0c3;       /* placeholder */
+  --line-200: #e4e8f0;      /* borders / dividers */
+  --line-100: #eef1f6;
+
+  --tag-4ps: #d94f70;       /* 4Ps Beneficiaries */
+  --tag-4ps-bg: #fdeaee;
+  --tag-ip: #1e8e5a;        /* IP Learners */
+  --tag-ip-bg: #e6f5ee;
+  --tag-sned: #7c5cd1;      /* SNED Learners */
+  --tag-sned-bg: #efeaFc;
+  --tag-aral: #e08a2b;      /* ARAL Tagged */
+  --tag-aral-bg: #fdf1e2;
+  --tag-muslim: #31527f;     /* Muslim Learners */
+  --tag-muslim-bg: #e8eef8;
+  --tag-neutral: #4a86ff;
+  --tag-neutral-bg: #eaf1ff;
+
+  --success-600: #1e8e5a;
+  --success-100: #e6f5ee;
+  --danger-600: #d64545;
+  --danger-100: #fdeaea;
+  --warning-600: #b9791f;
+  --warning-100: #fdf1e2;
+
+  /* ---- Type ------------------------------------------------------------ */
+  --font-ui: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+  /* ---- Shape / elevation ------------------------------------------------ */
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+  --shadow-card: 0 1px 2px rgba(16, 37, 74, 0.04), 0 1px 8px rgba(16, 37, 74, 0.06);
+  --shadow-pop: 0 8px 28px rgba(16, 37, 74, 0.16);
+
+  --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-fast: 140ms;
+  --motion-base: 220ms;
+  --motion-slow: 360ms;
+
+  --sidebar-w: 250px;
+  --topbar-h: 72px;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+html.dark-mode-preload, html.dark-mode-preload body { background: #101010; color: #d5d5d5; }
+html.dark-mode-preload .topbar { background: #181818; border-bottom-color: #303030; }
+html.dark-mode-preload .panel, html.dark-mode-preload .stat-card { background: #181818; }
+
+body {
+  margin: 0;
+  font-family: var(--font-ui);
+  background: var(--bg-app);
+  color: var(--ink-700);
+  -webkit-font-smoothing: antialiased;
+}
+
+body.dark-mode {
+  --bg-app: #101010;
+  --bg-card: #181818;
+  --ink-900: #f5f5f5;
+  --ink-700: #d5d5d5;
+  --ink-500: #a2a2a2;
+  --ink-300: #707070;
+  --line-200: #303030;
+  --line-100: #242424;
+  --blue-100: #292929;
+  --tag-neutral-bg: #292929;
+  --success-100: #1d382e;
+  --danger-100: #45262b;
+  --warning-100: #463721;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, .18), 0 1px 8px rgba(0, 0, 0, .2);
+  --shadow-pop: 0 10px 30px rgba(0, 0, 0, .38);
+}
+body.dark-mode .topbar,
+body.dark-mode .panel,
+body.dark-mode .stat-card,
+body.dark-mode .modal,
+body.dark-mode .enrollment-metric,
+body.dark-mode .stat-pill { background: var(--bg-card); }
+body.dark-mode .sidebar { background: #101010; border-right-color: #2a2a2a; }
+body.dark-mode .sidebar-brand { border-bottom-color: #2a2a2a; }
+body.dark-mode .sidebar-brand-text .name { color: #f5f5f5; }
+body.dark-mode .sidebar-brand-text .sub,
+body.dark-mode .nav-group-label,
+body.dark-mode .sidebar-footer { color: #a5a5a5; }
+body.dark-mode .nav-item { color: #dedede; }
+body.dark-mode .nav-item:hover { background: #222; color: #fff; }
+body.dark-mode .nav-item.is-active { background: #303030; color: #fff; }
+body.dark-mode .nav-item.is-active svg { color: #78a8ff; }
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea { background: #101010; color: var(--ink-900); border-color: var(--line-200); }
+body.dark-mode input::placeholder,
+body.dark-mode textarea::placeholder { color: #8f8f8f; opacity: 1; }
+body.dark-mode .data-table tbody tr:hover { background: #242424; }
+body.dark-mode .data-table thead th { background: #222; color: var(--ink-700); }
+body.dark-mode .modal-header,
+body.dark-mode .modal-footer { border-color: var(--line-200); }
+body.dark-mode .year-switcher,
+body.dark-mode .data-export-summary,
+body.dark-mode .utility-result { background: #151515; border-color: #343434; }
+body.dark-mode .enrollment-table .subtotal-row td { background: #292929; border-color: #444; }
+body.dark-mode .form-alert { background: #242424 !important; }
+body.dark-mode .site-footer { color: #858585; }
+body.dark-mode .date-chip,
+body.dark-mode .icon-btn,
+body.dark-mode .search-box input,
+body.dark-mode .select-filter,
+body.dark-mode .btn-secondary,
+body.dark-mode .btn-danger-outline,
+body.dark-mode .pager-btns button { background: #181818; color: var(--ink-700); border-color: var(--line-200); }
+body.dark-mode .bulk-toolbar { background: #151515; border-color: #303030; }
+body.dark-mode .bulk-selection-count { color: #b8b8b8; }
+body.dark-mode .btn-secondary:hover,
+body.dark-mode .pager-btns button:hover { background: #282828; }
+html.dark-mode-preload .date-chip,
+html.dark-mode-preload .icon-btn,
+html.dark-mode-preload .search-box input,
+html.dark-mode-preload .select-filter,
+html.dark-mode-preload .btn-secondary { background: #181818; color: #d5d5d5; border-color: #303030; }
+body.dark-mode .toast.info { background: #1b4b82; }
+body.dark-mode .login-panel { background: var(--bg-app); }
+body.dark-mode .login-card h2 { color: var(--ink-900); }
+body.dark-mode .login-card .sub,
+body.dark-mode .login-footnote { color: var(--ink-500); }
+body.dark-mode .field label { color: var(--ink-700); }
+body.dark-mode .field input { background: #101010; color: var(--ink-900); border-color: var(--line-200); }
+body.dark-mode .field input:focus { background: #181818; }
+body.dark-mode .field-row label { color: var(--ink-500); }
+body.dark-mode .login-divider { color: var(--ink-500); }
+body.dark-mode .visitor-login { background: linear-gradient(135deg, #181818 0%, #1c2927 100%); border-color: #3a4b48; color: var(--ink-700); }
+body.dark-mode .visitor-login:hover { border-color: #5b8278; }
+body.dark-mode .visitor-login-icon { background: #24463d; color: #9be0c8; }
+body.dark-mode .visitor-login-copy strong { color: var(--ink-900); }
+body.dark-mode .visitor-login-copy small { color: var(--ink-500); }
+body.dark-mode .login-panel .site-footer { color: var(--ink-500); }
+
+h1, h2, h3, h4 { color: var(--ink-900); margin: 0; font-weight: 700; }
+p { margin: 0; }
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; }
+
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+:focus-visible {
+  outline: 2px solid var(--blue-600);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+

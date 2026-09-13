@@ -1,0 +1,58 @@
+<div class="app-shell">
+  <div id="sidebarMount"></div>
+  <div class="main-area">
+    <div id="topbarMount"></div>
+    <main class="page feedback-page">
+      <div class="page-header">
+        <div>
+          <span class="eyebrow feedback-eyebrow">Your voice matters</span>
+          <h1>Website Feedback</h1>
+          <p class="desc">Help improve the website by sharing what works well and where we can make your daily work easier.</p>
+        </div>
+      </div>
+
+      <section class="feedback-layout">
+        <div class="feedback-intro panel">
+          <div class="feedback-intro-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H6l-3 2 1-4.5A7.5 7.5 0 1 1 20 11.5Z"/>
+              <path d="M8 11.5h.01M12 11.5h.01M16 11.5h.01"/>
+            </svg>
+          </div>
+          <h2>A better experience starts with your insight.</h2>
+          <p>Your ratings help us prioritize improvements to speed, clarity, navigation, and the tools your school uses most.</p>
+          <div class="feedback-privacy"><span aria-hidden="true">✓</span><span>Your response is sent securely to the website administrator.</span></div>
+        </div>
+
+        <section class="panel feedback-form-panel">
+          <div class="panel-header">
+            <div>
+              <span class="eyebrow">Quick evaluation</span>
+              <h3>Tell us how we are doing</h3>
+            </div>
+            <span class="feedback-scale-note">1 = Poor · 5 = Excellent</span>
+          </div>
+          <form id="feedbackForm" novalidate>
+            <div class="feedback-form-body">
+              <div class="field">
+                <label for="feedbackEmail">Email</label>
+                <input type="email" id="feedbackEmail" name="email" readonly aria-describedby="feedbackEmailHint" />
+                <small id="feedbackEmailHint">Taken from your signed-in account.</small>
+              </div>
+              <div id="feedbackRatingFields" class="feedback-rating-grid"></div>
+              <div class="field feedback-comment-field">
+                <label for="feedbackComment">Feedback</label>
+                <textarea id="feedbackComment" name="feedback" rows="5" maxlength="2000" required aria-required="true" placeholder="What should we keep, improve, or add?"></textarea>
+                <small>Share a specific suggestion or describe an experience.</small>
+              </div>
+            </div>
+            <div class="feedback-form-footer">
+              <span class="feedback-status" id="feedbackStatus" role="status" aria-live="polite" hidden></span>
+              <button class="btn btn-primary" id="feedbackSubmitBtn" type="submit" style="width:auto;">Submit feedback</button>
+            </div>
+          </form>
+        </section>
+      </section>
+    </main>
+  </div>
+</div>

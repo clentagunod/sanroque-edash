@@ -1,0 +1,25 @@
+<div class="app-shell">
+  <div id="sidebarMount"></div>
+  <div class="main-area">
+    <div id="topbarMount"></div>
+    <main class="page">
+      <div class="page-header">
+        <div><h1>Nutritional Status</h1><p class="desc">BOSY, MOSY, and EOSY nutrition measurements and status changes</p></div>
+        <button class="btn btn-primary" id="exportNutritionBtn" style="width:auto;"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg> Export Excel</button>
+      </div>
+      <div id="yearSwitcherMount"></div>
+      <div class="toolbar profile-filters">
+        <div class="search-box"><input id="nutritionSearch" type="search" placeholder="Search learner or LRN..." /></div>
+        <select class="select-filter" id="nutritionPeriodFilter"><option value="">All Assessment Periods</option><option value="bosy">BOSY</option><option value="mosy">MOSY</option><option value="eosy">EOSY</option></select>
+        <select class="select-filter" id="nutritionSexFilter"><option value="">All Sex</option><option>Male</option><option>Female</option></select>
+        <select class="select-filter" id="nutritionStatusFilter"><option value="">All Nutritional Statuses</option><option>Normal</option><option>Wasted</option><option>Severely Wasted</option><option>Overweight</option><option>Obese</option></select>
+      </div>
+      <div class="stat-pill-row" id="nutritionSummary"></div>
+      <section class="panel">
+        <div class="panel-header"><h3>Nutrition Progress by Learner</h3></div>
+        <div style="overflow-x:auto;"><table class="data-table nutrition-table" style="min-width:1050px;"><thead><tr><th>Name</th><th>Gender</th><th>BOSY<br><small>Height / Weight / Status</small></th><th>MOSY<br><small>Height / Weight / Status</small></th><th>EOSY<br><small>Height / Weight / Status</small></th><th>Status change</th></tr></thead><tbody id="nutritionTableBody"><tr><td colspan="6" class="state-row">Loading nutritional records...</td></tr></tbody></table></div>
+      </section>
+      <div class="pagination"><span id="nutritionPageInfo">-</span><div class="pager-btns" id="nutritionPagerBtns"></div></div>
+    </main>
+  </div>
+</div>

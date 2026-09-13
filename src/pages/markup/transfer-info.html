@@ -1,0 +1,49 @@
+<div class="app-shell">
+  <div id="sidebarMount"></div>
+  <div class="main-area">
+    <div id="topbarMount"></div>
+    <main class="page">
+      <div class="page-header">
+        <div>
+          <h1>Transfer Info</h1>
+          <p class="desc">Transfer-in and transfer-out records for the current school year</p>
+        </div>
+      </div>
+
+      <div id="yearSwitcherMount"></div>
+      <div class="stat-pill-row" id="transferSummary"></div>
+
+      <div class="toolbar transfer-filters"><div class="search-box"><input id="transferSearch" type="search" placeholder="Search learner, LRN, or school..." /></div>
+        <select class="select-filter" id="transferTypeFilter"><option value="all">All Transfers</option><option value="in">Transfer-In</option><option value="out">Transfer-Out</option></select>
+        <select class="select-filter" id="transferGradeFilter"><option value="">All Grade Levels</option><option>Kinder</option><option>Grade 1</option><option>Grade 2</option><option>Grade 3</option><option>Grade 4</option><option>Grade 5</option><option>Grade 6</option></select>
+        <select class="select-filter" id="transferGenderFilter"><option value="">All Sex</option><option value="Male">Male</option><option value="Female">Female</option></select>
+      </div>
+
+      <section class="panel">
+        <div class="panel-header"><h3>Transfer Records</h3></div>
+        <div style="overflow-x:auto;">
+          <table class="data-table transfer-table" style="min-width:1180px;">
+            <thead>
+              <tr>
+                <th>Learner ID</th>
+                <th>Name</th>
+                <th>Grade</th>
+                <th>Gender</th>
+                <th>Transfer Type</th>
+                <th>School</th>
+                <th>Date</th>
+                <th>Reason</th>
+                <th>Notes</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="transferTableBody">
+              <tr><td colspan="10" class="state-row">Loading transfer records…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>

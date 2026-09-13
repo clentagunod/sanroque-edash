@@ -1,0 +1,34 @@
+<div class="app-shell">
+  <div id="sidebarMount"></div>
+  <div class="main-area">
+    <div id="topbarMount"></div>
+    <main class="page">
+      <div class="page-header">
+        <div>
+          <h1>Audit Log</h1>
+          <p class="desc">A read-only history of activity recorded in the AuditLog sheet</p>
+        </div>
+        <button class="btn btn-secondary" id="auditRefreshBtn" type="button">Refresh log</button>
+      </div>
+
+      <section class="panel">
+        <div class="panel-body">
+          <div class="audit-toolbar">
+            <div class="search-box">
+              <input type="search" id="auditSearch" placeholder="Search user, action, sheet, or record…" aria-label="Search audit log" />
+            </div>
+            <span class="audit-meta" id="auditMeta">Loading audit entries…</span>
+          </div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="data-table audit-table">
+            <thead>
+              <tr><th>Timestamp</th><th>User</th><th>Action</th><th>Sheet</th><th>Record / ID</th><th>Old Value</th><th>New Value</th><th>IP / Session</th></tr>
+            </thead>
+            <tbody id="auditTableBody"><tr><td colspan="8" class="state-row">Loading audit entries…</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>

@@ -1,0 +1,25 @@
+<div class="app-shell">
+  <div id="sidebarMount"></div>
+  <div class="main-area">
+    <div id="topbarMount"></div>
+    <main class="page">
+      <div class="page-header">
+        <div><h1>Math Profile</h1><p class="desc">RMA progress across Grades 1 through 6</p></div>
+        <button class="btn btn-primary" id="exportMathBtn" style="width:auto;">Export Excel</button>
+      </div>
+      <div id="yearSwitcherMount"></div>
+      <div class="toolbar profile-filters">
+        <div class="search-box"><input id="mathSearch" type="search" placeholder="Search learner or LRN..." /></div>
+        <select class="select-filter" id="mathPeriodFilter"><option value="">All Assessment Periods</option><option value="bosy">BOSY</option><option value="mosy">MOSY</option><option value="eosy">EOSY</option></select>
+        <select class="select-filter" id="mathSexFilter"><option value="">All Sex</option><option>Male</option><option>Female</option></select>
+        <select class="select-filter" id="mathStatusFilter"><option value="">All Math Classifications</option><option>Not Proficient</option><option>Low Proficient</option><option>Nearly-Proficient</option><option>Proficient</option><option>Highly-Proficient</option></select>
+      </div>
+      <div class="stat-pill-row" id="mathSummary"></div>
+      <section class="panel">
+        <div class="panel-header"><h3>BOSY, MOSY, and EOSY RMA Profile</h3></div>
+        <div style="overflow-x:auto;"><table class="data-table reading-profile-table" style="min-width:950px;"><thead><tr><th>Name</th><th>Grade</th><th>Gender</th><th>BOSY<br><small>RMA level</small></th><th>MOSY<br><small>RMA level</small></th><th>EOSY<br><small>RMA level</small></th><th>Change</th></tr></thead><tbody id="mathTableBody"><tr><td colspan="7" class="state-row">Loading math profiles...</td></tr></tbody></table></div>
+      </section>
+      <div class="pagination"><span id="mathPageInfo">-</span><div class="pager-btns" id="mathPagerBtns"></div></div>
+    </main>
+  </div>
+</div>

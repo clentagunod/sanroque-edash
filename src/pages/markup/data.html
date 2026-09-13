@@ -1,0 +1,41 @@
+<div class="app-shell">
+  <div id="sidebarMount"></div>
+  <div class="main-area">
+    <div id="topbarMount"></div>
+    <main class="page">
+      <div class="page-header">
+        <div>
+          <h1>Data</h1>
+          <p class="desc">Download complete learner datasets for the selected school year</p>
+        </div>
+      </div>
+
+      <div id="yearSwitcherMount"></div>
+      <section class="panel data-download-panel">
+        <div class="panel-header"><div><span class="eyebrow">Export workspace</span><h3>Choose the records to download</h3></div></div>
+        <div class="panel-body">
+          <div class="data-filter-grid">
+            <label class="field">Search<input id="dataSearch" type="search" placeholder="Name or LRN" /></label>
+            <label class="field">Grade level<select id="dataGrade"><option value="">All grade levels</option><option>Kinder</option><option>Grade 1</option><option>Grade 2</option><option>Grade 3</option><option>Grade 4</option><option>Grade 5</option><option>Grade 6</option></select></label>
+            <label class="field">Program<select id="dataProgram"><option value="">All programs</option><option value="4Ps">4Ps Beneficiaries</option><option value="IP">IP Learners</option><option value="SNED">SNED Learners</option><option value="ARAL">ARAL Tagged</option><option value="Muslim">Muslim Learners</option></select></label>
+            <label class="field">Gender<select id="dataGender"><option value="">All genders</option><option>Male</option><option>Female</option></select></label>
+          </div>
+          <div class="data-export-summary"><div><strong id="dataRecordCount">Loading records...</strong><span id="dataFilterSummary">Preparing the selected school year</span></div><button class="btn btn-secondary" id="dataRefreshBtn" type="button">Refresh preview</button></div>
+          <div class="data-export-status" id="dataExportStatus" role="status" aria-live="polite" hidden>
+            <div class="data-export-status-head"><strong id="dataExportStatusText">Preparing download...</strong><span id="dataExportProgressText">0%</span></div>
+            <div class="data-export-progress" aria-hidden="true"><span id="dataExportProgress"></span></div>
+            <button class="data-export-cancel" id="dataExportCancelBtn" type="button">Cancel</button>
+          </div>
+          <div class="data-export-actions">
+            <button class="btn btn-primary" id="downloadFilteredBtn" type="button">Download filtered Excel</button>
+            <button class="btn btn-secondary" id="downloadAllBtn" type="button">Download full masterlist</button>
+            <button class="btn btn-secondary" id="downloadCsvBtn" type="button">Download CSV</button>
+            <button class="btn btn-secondary" id="downloadTransferredOutBtn" type="button">Download Transferred Out</button>
+            <button class="btn btn-secondary" id="downloadDropoutBtn" type="button">Download Dropout</button>
+          </div>
+          <div class="data-export-note">Exports use the selected Firestore school year. Archive downloads read from the TransferredOut and Dropouts collections.</div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>

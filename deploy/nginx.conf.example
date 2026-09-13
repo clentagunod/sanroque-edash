@@ -1,0 +1,6 @@
+# Example nginx location block for SPA fallback.
+# Serves index.html for any path that isn't a real static file on disk
+# (covers /pages/dashboard.html, /pages/masterlist.html, etc.)
+location / {
+  try_files $uri /index.html;
+}

@@ -1,0 +1,23 @@
+<div class="app-shell"><div id="sidebarMount"></div><div class="main-area"><div id="topbarMount"></div><main class="page">
+  <div class="page-header"><div><h1>Utilities</h1><p class="desc">Quick tools for everyday school records work</p></div></div>
+  <div class="utility-grid">
+    <section class="panel utility-card">
+      <div class="panel-header"><div><span class="eyebrow">Academic tool</span><h3>Grade Calculator</h3></div></div>
+      <div class="panel-body">
+        <p class="utility-description">Enter subject grades to calculate an arithmetic average. Empty subjects are excluded.</p>
+        <div class="utility-subject-grid" id="utilitySubjectGrid"></div>
+        <div class="utility-actions"><button class="btn btn-primary" id="calculateGradeBtn" type="button">Calculate average</button><button class="btn btn-secondary" id="resetGradeBtn" type="button">Clear</button></div>
+        <div class="utility-result" id="gradeResult" aria-live="polite"><span>Average</span><strong>—</strong><small>Enter at least one grade from 60 to 100.</small></div>
+      </div>
+    </section>
+    <section class="panel utility-card">
+      <div class="panel-header"><div><span class="eyebrow">Health tool</span><h3>BMI Calculator</h3></div></div>
+      <div class="panel-body">
+        <p class="utility-description">Use height in meters and weight in kilograms. BMI is a screening measure, not a diagnosis.</p>
+        <div class="field-grid utility-bmi-grid"><label class="field">Height (m)<input id="utilityHeight" type="number" min="0.3" max="2.5" step="0.001" placeholder="e.g. 1.40" /></label><label class="field">Weight (kg)<input id="utilityWeight" type="number" min="1" max="300" step="0.1" placeholder="e.g. 35" /></label></div>
+        <div class="utility-actions"><button class="btn btn-primary" id="calculateBmiBtn" type="button">Calculate BMI</button><button class="btn btn-secondary" id="resetBmiBtn" type="button">Clear</button></div>
+        <div class="utility-result" id="bmiResult" aria-live="polite"><span>BMI</span><strong>—</strong><small>Enter a valid height and weight.</small></div>
+      </div>
+    </section>
+  </div>
+</main></div></div>

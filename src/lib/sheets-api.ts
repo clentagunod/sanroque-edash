@@ -288,7 +288,14 @@ export const LPSApi = (() => {
       return tokenPromise.then((token) => fetchWithTimeout(APP_CONFIG.auditLogApiUrl, {
         method: "POST", redirect: "follow", headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({ action: "deleteAuthUsers", token, userIds }),
-      })).then(parseResponse);
+      })).then(parseResponse).then((result) => {
+        const requested = (userIds || []).map((id) => String(id || "").trim()).filter(Boolean);
+        const deleted = Array.isArray(result?.deletedUserIds) ? result.deletedUserIds.map((id) => String(id || "").trim()) : [];
+        if (requested.length && requested.some((id) => !deleted.includes(id))) {
+          throw new Error("Firebase Authentication did not confirm deletion for every selected user. The Firestore profiles were left unchanged.");
+        }
+        return result;
+      });
     },
     deleteUser: (userId) => post("deleteUser", { userId }),
     deleteUsers: (userIds) => post("deleteUsers", { userIds }),

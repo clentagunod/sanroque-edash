@@ -22,20 +22,18 @@ npm install
 
 1. Open the [Firebase Console](https://console.firebase.google.com/) and create or select a project.
 2. Go to **Project settings** and create a Web App under **Your apps**.
-3. Copy the web app configuration into `src/lib/app-config.ts` under `APP_CONFIG.firebase`:
+3. Copy the web app configuration into a local `.env.local` file at the project root:
 
-```ts
-firebase: {
-  apiKey: "...",
-  authDomain: "your-project.firebaseapp.com",
-  projectId: "your-project-id",
-  storageBucket: "...",
-  messagingSenderId: "...",
-  appId: "...",
-}
+```dotenv
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your-project-id
+VITE_FIREBASE_STORAGE_BUCKET=...
+VITE_FIREBASE_MESSAGING_SENDER_ID=...
+VITE_FIREBASE_APP_ID=...
 ```
 
-The Firebase web configuration is intended to be public. Never place service-account credentials in this file or anywhere under `src/` or `public/`.
+Start from `.env.example`. `.env.local` is ignored by Git. The Firebase web configuration is intended to be public and will be included in the browser bundle; it is protected by Firebase Authentication and Firestore Rules, not by hiding the web `apiKey`. Never place service-account credentials in this file or anywhere under `src/` or `public/`.
 
 ## 3. Enable Firebase Services
 
@@ -77,12 +75,12 @@ The administrator can now sign in and use the Admin Console to manage users and 
 
 ## 5. Configure The Application
 
-Update these values in `src/lib/app-config.ts`:
+Set these values in `.env.local` for local development:
 
-- `firebase`: the Firebase Web App configuration.
-- `auditLogApiUrl`: deployed `/exec` URL for `apps-script/AuditLog.gs`.
-- `feedbackApiUrl`: deployed `/exec` URL for `apps-script/Feedback.gs`.
-- `backupSpreadsheetUrl`: optional link to the backup spreadsheet or backup service.
+- `VITE_FIREBASE_*`: the Firebase Web App configuration.
+- `VITE_AUDIT_LOG_API_URL`: deployed `/exec` URL for `apps-script/AuditLog.gs`.
+- `VITE_FEEDBACK_API_URL`: deployed `/exec` URL for `apps-script/Feedback.gs`.
+- `VITE_BACKUP_SPREADSHEET_URL`: optional link to the backup spreadsheet or backup service.
 
 The application database does not require a Google Sheets URL. The current Firestore integration is initialized by `src/main.tsx` and `src/lib/firestore-api.ts`.
 
@@ -105,7 +103,7 @@ FIREBASE_SERVICE_ACCOUNT_JSON  Service-account JSON used by the Admin API
 5. Deploy → **New deployment** → **Web app**.
 6. Execute as the spreadsheet owner.
 7. Allow access for the intended website users.
-8. Copy the deployed `/exec` URL into `APP_CONFIG.auditLogApiUrl`.
+8. Copy the deployed `/exec` URL into `VITE_AUDIT_LOG_API_URL` in `.env.local`.
 9. Run `redactExistingAuditLog()` once if the spreadsheet contains old unrestricted audit values.
 
 Keep the service-account JSON only in Apps Script Script Properties. Never commit it to the repository.
@@ -118,7 +116,7 @@ Keep the service-account JSON only in Apps Script Script Properties. Never commi
 2. Open **Extensions → Apps Script**.
 3. Copy `apps-script/Feedback.gs` into the project.
 4. Deploy it as a Web App executing as the spreadsheet owner.
-5. Copy its `/exec` URL into `APP_CONFIG.feedbackApiUrl`.
+5. Copy its `/exec` URL into `VITE_FEEDBACK_API_URL` in `.env.local`.
 6. The script creates the `Feedback` sheet and headers automatically on first submission.
 
 Keep Feedback and AuditLog in separate spreadsheets unless you intentionally update both scripts and their bindings.
@@ -169,6 +167,13 @@ firebase deploy --only hosting
 
 `firebase.json` already points Hosting at `dist/` and rewrites application routes to `index.html`.
 
+### Vercel
+
+1. Open the Vercel project → **Settings → Environment Variables**.
+2. Add every variable from `.env.example`, using the same names and values as `.env.local`.
+3. Select the environments that need each value, then redeploy. Vercel injects `VITE_*` values at build time, so changing one requires a new deployment.
+4. Do not paste service-account JSON, private keys, passwords, or admin tokens into any `VITE_*` variable. Vite intentionally exposes every `VITE_*` value to browsers.
+
 ### Other Hosts
 
 Deploy `dist/` to a host that supports SPA fallback. The repository includes `vercel.json` and `public/_redirects` for common providers. Ensure requests to `/pages/*.html` fall back to `index.html`.
@@ -197,3 +202,15 @@ Check these workflows after deployment:
 - Keep Firestore backups private because they contain sensitive learner information.
 - Use the Firebase Console to remove a user manually only when the normal Admin Console flow is unavailable.
 - When changing roles or status, confirm the matching Firebase Auth account and `users/{uid}` document use the same UID.
+
+## 13. Keeping Secrets Server-Side
+
+Anything prefixed with `VITE_` is public. A user can retrieve it from the built JavaScript, browser developer tools, or network requests. This includes the Firebase web `apiKey`, project identifiers, and any Apps Script URL. Do not put a credential that grants administrative access in a `VITE_*` variable.
+
+Keep true secrets in a server-only runtime:
+
+- Apps Script: store `FIREBASE_SERVICE_ACCOUNT_JSON`, `FIREBASE_WEB_API_KEY`, and other private values in **Project Settings → Script properties**. Read them with `PropertiesService` and never return them in a web response.
+- Vercel: store private values under **Settings → Environment Variables** without a `VITE_` prefix, for example `FIREBASE_SERVICE_ACCOUNT_JSON`. Read them only inside a Vercel Function under `api/`; call that function from the browser instead of calling an admin API directly.
+- Never import server-only environment variables into React code, place them in `public/`, log them, or include them in JSON responses. Restrict the server endpoint with Firebase ID-token verification, authorization checks, validation, and rate limiting.
+
+Changing a value from a hardcoded string to `.env.local` protects the Git repository, but it does not hide a value that the browser needs. To make a secret unretrievable by users, the operation using it must happen on Apps Script or a Vercel server function, with only the result returned to the browser. Rotate any credential that has already been committed publicly, and review Git history because deleting the latest copy does not remove old commits.

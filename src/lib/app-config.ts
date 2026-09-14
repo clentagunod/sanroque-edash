@@ -1,18 +1,20 @@
 // @ts-nocheck -- ported from the original site; behavior preserved, not yet fully typed.
+const env = import.meta.env;
+
 export const APP_CONFIG = Object.freeze({
   firebase: {
-    apiKey: "AIzaSyCKpafPoWfl0njw4qPaUONpvDzEifyVtM4",
-    authDomain: "san-roque-es-dashboard.firebaseapp.com",
-    projectId: "san-roque-es-dashboard",
-    storageBucket: "san-roque-es-dashboard.firebasestorage.app",
-    messagingSenderId: "54497527570",
-    appId: "1:54497527570:web:7444fdcad3326c6fb995cb",
+    apiKey: env.VITE_FIREBASE_API_KEY || "",
+    authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || "",
+    projectId: env.VITE_FIREBASE_PROJECT_ID || "",
+    storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || "",
+    messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || "",
+    appId: env.VITE_FIREBASE_APP_ID || "",
   },
   // Set this after deploying apps-script/AuditLog.gs as a Web App.
-  auditLogApiUrl: "https://script.google.com/macros/s/AKfycbzzSjlL3mV8XLfzCJK_SpfGiv2XEyqGe7U3pwpttqM96Q-JKlpz57PWG8k8JUgci6bwPw/exec",
-  feedbackApiUrl: "https://script.google.com/macros/s/AKfycby9RSvbuCuK4HKM_Nip1cmeHziQUHum-mYnkNWeG5PqL7Kwd78AZqk3p6T4JOpTeJlC/exec",
+  auditLogApiUrl: env.VITE_AUDIT_LOG_API_URL || "",
+  feedbackApiUrl: env.VITE_FEEDBACK_API_URL || "",
   // Paste the Google Sheets backup URL here after creating the backup sheet.
-  backupSpreadsheetUrl: "https://script.google.com/macros/s/AKfycbwxarMZMTlt6nq7-Kd2ENNdPs7f99i-dF3jdFSabITiaSmNtphrYxDNOp9CrS-0FtHE/exec",
+  backupSpreadsheetUrl: env.VITE_BACKUP_SPREADSHEET_URL || "",
   assetsPath: "assets/",
   pagePath: "pages/",
 });

@@ -3,3 +3,6 @@ dist
 *.tsbuildinfo
 .DS_Store
 apps-script
+.env
+.env.*
+.env.example

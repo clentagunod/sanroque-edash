@@ -6,3 +6,4 @@ apps-script
 .env
 .env.*
 .env.example
+service-account*.json

@@ -121,7 +121,30 @@ Keep the service-account JSON only in Apps Script Script Properties. Never commi
 
 Keep Feedback and AuditLog in separate spreadsheets unless you intentionally update both scripts and their bindings.
 
-## 8. Add School Years And Sections
+## 8. Enable Firestore Usage Monitoring
+
+The Admin Console includes a Firestore usage monitor. It reads the last 14 days of Firestore operation metrics through the deployed AuditLog Apps Script service; the service account is never sent to the browser.
+
+1. In Google Cloud Console, select the Firebase project and enable **Cloud Monitoring API**.
+2. Ensure the Apps Script service account has **Monitoring Viewer** access to the project. Do not grant Owner or Editor access.
+3. In Apps Script **Project Settings → Script properties**, configure:
+
+```text
+FIRESTORE_PROJECT_ID             san-roque-es-dashboard
+FIREBASE_SERVICE_ACCOUNT_JSON    The replacement service-account JSON
+```
+
+`FIRESTORE_PROJECT_ID` must be the Firebase project ID `san-roque-es-dashboard`. Do not use the numeric project number `54497527570` or the Firebase messaging sender ID.
+
+4. Redeploy the AuditLog Apps Script Web App after saving the properties.
+5. Sign in as an active **School Admin**, open **Admin Console**, and select **Refresh Firestore usage**.
+6. Confirm that the panel shows daily reads, writes, deletes, quota percentages, and a refreshed timestamp.
+
+Cloud Monitoring data is delayed and is not guaranteed to be instantaneous. The Firebase usage console remains the source of truth for billing and quota details.
+
+If the monitor reports `SERVICE_DISABLED` or asks you to visit `billing/enable`, open the link from the error and enable or link billing for the Google Cloud project `san-roque-es-dashboard`. Then enable **Cloud Monitoring API**, wait a few minutes, redeploy the Apps Script Web App, and refresh the Admin Console. This monitoring API requires a billing-enabled Google Cloud project even when Firestore itself is using the no-cost quota.
+
+## 9. Add School Years And Sections
 
 After the first admin signs in:
 
@@ -132,7 +155,7 @@ After the first admin signs in:
 
 The website stores school years in `schoolYears` and section/adviser records in `sections`.
 
-## 9. Add Learner Data
+## 10. Add Learner Data
 
 Learners are entered through the Masterlist or program pages. Each record belongs to a selected school year. The app stores active learners under:
 
@@ -144,7 +167,7 @@ Dropouts and transferred-out learners are moved to their separate year-specific 
 
 If existing data must be migrated, export it to a safe private copy and write a one-time migration script against the current Firestore document structure. Test with a small sample before importing the complete dataset.
 
-## 10. Build And Deploy The Website
+## 11. Build And Deploy The Website
 
 Create a production build:
 
@@ -178,7 +201,7 @@ firebase deploy --only hosting
 
 Deploy `dist/` to a host that supports SPA fallback. The repository includes `vercel.json` and `public/_redirects` for common providers. Ensure requests to `/pages/*.html` fall back to `index.html`.
 
-## 11. Verify The Installation
+## 12. Verify The Installation
 
 Check these workflows after deployment:
 
@@ -193,7 +216,7 @@ Check these workflows after deployment:
 9. Create an audit event and confirm it appears in the AuditLog sheet.
 10. Test the deployed site on a fresh browser session and on mobile width.
 
-## 12. Security Checklist
+## 13. Security Checklist
 
 - Publish and review `firestore.rules` before production use.
 - Use a strong temporary password and reset it after the first admin signs in.
@@ -203,7 +226,7 @@ Check these workflows after deployment:
 - Use the Firebase Console to remove a user manually only when the normal Admin Console flow is unavailable.
 - When changing roles or status, confirm the matching Firebase Auth account and `users/{uid}` document use the same UID.
 
-## 13. Keeping Secrets Server-Side
+## 14. Keeping Secrets Server-Side
 
 Anything prefixed with `VITE_` is public. A user can retrieve it from the built JavaScript, browser developer tools, or network requests. This includes the Firebase web `apiKey`, project identifiers, and any Apps Script URL. Do not put a credential that grants administrative access in a `VITE_*` variable.
 

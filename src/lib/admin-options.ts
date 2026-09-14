@@ -30,47 +30,8 @@ export async function initAdminOptions() {
   document.getElementById("downloadFirestoreBackupBtn")?.addEventListener("click", downloadFirestoreBackup);
   const backupLink = document.getElementById("openBackupSpreadsheetBtn");
   if (backupLink && APP_CONFIG.backupSpreadsheetUrl) backupLink.href = APP_CONFIG.backupSpreadsheetUrl;
-  document.getElementById("refreshFirestoreUsageBtn")?.addEventListener("click", renderSimpleFirestoreUsage);
   await loadAdminStructure();
   ensureAdminModals();
-  loadFirestoreUsage();
-}
-
-export async function loadFirestoreUsage() {
-  const state = document.getElementById("firestoreUsageState");
-  const content = document.getElementById("firestoreUsageContent");
-  const refresh = document.getElementById("firestoreUsageRefresh");
-  if (!state || !content || !refresh) return;
-  renderSimpleFirestoreUsage();
-  state.textContent = "Simple mode: quotas are shown below. Open Firebase usage for live project totals.";
-  state.className = "usage-simple-state";
-  content.hidden = false;
-  refresh.textContent = "Simple mode";
-}
-
-export function renderSimpleFirestoreUsage() {
-  const limits = { reads: 50000, writes: 20000, deletes: 20000 };
-  const labels = [["reads", "Reads", "blue"], ["writes", "Writes", "green"], ["deletes", "Deletes", "orange"]];
-  document.getElementById("firestoreQuotaCards").innerHTML = labels.map(([key, label, color]) => `<article class="usage-quota-card"><div class="usage-quota-icon ${color}">${key === "reads" ? "R" : key === "writes" ? "W" : "D"}</div><div><span>${label}</span><strong>View live total</strong><small>${limits[key].toLocaleString()} free operations per day</small></div><div class="usage-progress"><i style="width:0%"></i></div></article>`).join("");
-  document.getElementById("firestoreUsageChart").innerHTML = `<div class="usage-simple-message"><strong>Live project totals are not available in simple mode.</strong><span>Click “Open usage” above to see the current Firebase read, write, delete, storage, and download totals.</span></div>`;
-  document.getElementById("firestoreUsageReset").textContent = "Quota refreshes daily";
-}
-
-export function renderFirestoreUsage(usage) {
-  const limits = usage.limits || {};
-  const days = usage.days || [];
-  const latest = days[days.length - 1] || { reads: 0, writes: 0, deletes: 0 };
-  const metrics = [["reads", "Reads", "blue"], ["writes", "Writes", "green"], ["deletes", "Deletes", "orange"]];
-  document.getElementById("firestoreQuotaCards").innerHTML = metrics.map(([key, label, color]) => {
-    const value = Number(latest[key] || 0);
-    const limit = Number(limits[key] || 0);
-    const percent = limit ? Math.round(value / limit * 100) : 0;
-    const exceeded = value > limit;
-    return `<article class="usage-quota-card ${exceeded ? "is-exceeded" : ""}"><div class="usage-quota-icon ${color}">${key === "reads" ? "R" : key === "writes" ? "W" : "D"}</div><div><span>${label}</span><strong>${value.toLocaleString()}</strong><small>${percent}% of ${limit.toLocaleString()} daily free operations</small></div><div class="usage-progress"><i style="width:${Math.min(100, percent)}%"></i></div>${exceeded ? "<em>Over free limit</em>" : ""}</article>`;
-  }).join("");
-  const max = Math.max(1, ...days.flatMap((day) => metrics.map(([key]) => Number(day[key] || 0))));
-  document.getElementById("firestoreUsageChart").innerHTML = days.map((day) => `<div class="usage-chart-day"><div class="usage-bars">${metrics.map(([key, label, color]) => `<span class="usage-bar ${color}" style="height:${Math.max(3, Number(day[key] || 0) / max * 100)}%" title="${label}: ${Number(day[key] || 0).toLocaleString()}"></span>`).join("")}</div><small>${day.date.slice(5)}</small></div>`).join("");
-  document.getElementById("firestoreUsageReset").textContent = `Next reset: ${new Date(usage.nextResetAt).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}`;
 }
 
 export async function loadAdminStructure() {

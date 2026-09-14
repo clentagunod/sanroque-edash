@@ -79,6 +79,10 @@ body.dark-mode .admin-year-picker select { border-color: #52698f; background: #1
 .firestore-usage-panel { overflow: hidden; }
 .firestore-usage-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 20px 20px 14px; border-bottom: 1px solid var(--line-100); }
 .firestore-usage-head h3 { margin: 3px 0 4px; font-size: 17px; }
+.usage-head-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+.usage-refresh-badge.is-live { color: var(--success-600); border-color: rgba(32, 133, 90, .28); background: rgba(32, 133, 90, .08); }
+.usage-loading-state, .usage-error-state { flex: 0 0 auto; padding: 6px 9px; border: 1px solid var(--line-200); border-radius: 999px; color: var(--ink-500); background: var(--bg-page); font-size: 10px; font-weight: 700; }
+.usage-error-state { color: var(--danger-600); border-color: rgba(191, 62, 62, .28); background: rgba(191, 62, 62, .08); }
 .usage-refresh-badge { flex: 0 0 auto; padding: 6px 9px; border: 1px solid var(--line-200); border-radius: 999px; color: var(--ink-500); background: var(--bg-page); font-size: 10px; font-weight: 700; }
 .usage-console-link { width: auto; flex: 0 0 auto; text-decoration: none; }
 .usage-quota-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 18px 20px; }
@@ -101,6 +105,7 @@ body.dark-mode .admin-year-picker select { border-color: #52698f; background: #1
 .usage-chart-heading strong, .usage-chart-heading small { display: block; }
 .usage-chart-heading strong { color: var(--ink-900); font-size: 13px; }
 .usage-chart-heading small, .usage-chart-heading span { color: var(--ink-500); font-size: 10px; }
+.usage-chart-heading span { font-weight: 700; }
 .usage-chart { display: flex; align-items: flex-end; gap: 8px; height: 128px; overflow-x: auto; padding-top: 8px; }
 .usage-chart-day { display: flex; min-width: 34px; height: 100%; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; }
 .usage-bars { display: flex; align-items: flex-end; justify-content: center; width: 100%; height: 100%; gap: 2px; }
@@ -108,10 +113,13 @@ body.dark-mode .admin-year-picker select { border-color: #52698f; background: #1
 .usage-chart-day small { color: var(--ink-500); font-size: 9px; }
 .usage-simple-message { display: flex; min-width: 260px; flex-direction: column; gap: 5px; align-items: center; justify-content: center; height: 100%; color: var(--ink-500); text-align: center; font-size: 11px; }
 .usage-simple-message strong { color: var(--ink-700); font-size: 12px; }
+.usage-reset { margin-top: 10px; color: var(--ink-500); font-size: 10px; }
 body.dark-mode .usage-refresh-badge, body.dark-mode .usage-chart-wrap { background: var(--bg-card); }
 .admin-check { display: flex; align-items: center; gap: 8px; margin-top: 4px; color: var(--ink-700); font-size: 13px; }
 .admin-check input { width: auto; }
 @media (max-width: 560px) {
+  .firestore-usage-head { flex-direction: column; }
+  .usage-head-actions { justify-content: flex-start; }
   .archive-editor-modal { width: calc(100vw - 24px); }
   .archive-editor-modal .field-grid { grid-template-columns: 1fr; }
   .archive-editor-modal .field-grid .span-2 { grid-column: auto; }

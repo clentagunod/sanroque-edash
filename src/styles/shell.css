@@ -782,6 +782,45 @@ body.dark-mode .search-box input::placeholder {
 .data-export-summary span { margin-top: 3px; color: var(--ink-500); font-size: 12px; }
 .data-export-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
 .data-export-actions .btn { display: inline-flex; align-items: center; gap: 7px; }
+
+/* Shared interaction polish for pointer devices. */
+@media (hover: hover) {
+  .stat-card:hover {
+    border-color: color-mix(in srgb, var(--blue-600) 24%, var(--line-200));
+    box-shadow: 0 8px 22px rgba(16, 37, 74, .12);
+  }
+
+  .panel:hover {
+    transform: translateY(-2px);
+  }
+
+  .date-chip,
+  .select-filter,
+  .pager-btns button,
+  .btn-secondary,
+  .btn-danger-outline {
+    transition: color var(--motion-fast) ease, background var(--motion-fast) ease,
+      border-color var(--motion-fast) ease, box-shadow var(--motion-fast) ease,
+      transform var(--motion-fast) var(--ease-standard);
+  }
+
+  .date-chip:hover,
+  .select-filter:hover,
+  .pager-btns button:hover {
+    border-color: var(--blue-500);
+    box-shadow: 0 4px 12px rgba(47, 111, 237, .1);
+    transform: translateY(-1px);
+  }
+
+  .btn-secondary:hover,
+  .btn-danger-outline:hover {
+    transform: translateY(-1px);
+  }
+
+  .data-table tbody tr:hover {
+    box-shadow: inset 3px 0 var(--blue-500);
+  }
+}
 .data-export-note { margin-top: 16px; color: var(--ink-500); font-size: 12px; line-height: 1.5; }
 .data-export-status { position: relative; display: grid; gap: 9px; margin-top: 14px; padding: 13px 14px; border: 1px solid #c9d9f2; border-radius: var(--radius-md); background: linear-gradient(135deg, #f5f9ff, #eef5ff); }
 .data-export-status[hidden] { display: none; }

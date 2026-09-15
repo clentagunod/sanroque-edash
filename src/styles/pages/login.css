@@ -325,6 +325,11 @@
   background: var(--line-200);
 }
 
+.login-access-options {
+  display: grid;
+  gap: 10px;
+}
+
 .visitor-login {
   width: 100%;
   display: flex;
@@ -401,6 +406,29 @@
 }
 
 .visitor-login:hover .visitor-login-arrow { transform: translateX(3px); }
+
+.parent-login {
+  background: linear-gradient(135deg, #fffaf0 0%, #fff5e7 100%);
+  border-color: #ead5b1;
+}
+
+.parent-login .visitor-login-icon {
+  background: #f8e8c9;
+  color: #9a681d;
+}
+
+.parent-login:hover { border-color: #d6ad6f; }
+
+body.dark-mode .parent-login {
+  background: linear-gradient(135deg, #fffaf0 0%, #fff5e7 100%);
+  border-color: #ead5b1;
+  color: var(--ink-700);
+}
+
+body.dark-mode .parent-login:hover { border-color: #d6ad6f; }
+body.dark-mode .parent-login .visitor-login-icon { background: #f8e8c9; color: #9a681d; }
+body.dark-mode .parent-login .visitor-login-copy strong { color: var(--ink-900); }
+body.dark-mode .parent-login .visitor-login-copy small { color: var(--ink-500); }
 
 .form-alert {
   display: none;

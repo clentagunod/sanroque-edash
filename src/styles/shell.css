@@ -688,7 +688,14 @@ body.dark-mode .search-box input::placeholder {
   transition: border-color 0.12s ease, background 0.12s ease;
 }
 .checkbox-tile:hover { border-color: var(--blue-500); background: var(--blue-100); }
-.checkbox-tile input { accent-color: var(--blue-600); }
+.checkbox-tile input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  flex: 0 0 16px;
+  accent-color: var(--blue-600);
+}
 
 /* ---- Toast --------------------------------------------------------------- */
 

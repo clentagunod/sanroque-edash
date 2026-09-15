@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
+import ParentPortalPage from './pages/ParentPortalPage';
 import RouteErrorBoundary from './components/RouteErrorBoundary';
 import RouteLoadingFallback from './components/RouteLoadingFallback';
 
@@ -44,6 +45,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<LoginPage />} />
           <Route path="/index.html" element={<LoginPage />} />
+          <Route path="/parent.html" element={<ParentPortalPage />} />
 
           <Route path="/pages/dashboard.html" element={<DashboardPage />} />
           <Route path="/pages/masterlist.html" element={<MasterlistPage />} />

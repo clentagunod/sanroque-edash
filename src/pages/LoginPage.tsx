@@ -30,6 +30,13 @@ export default function LoginPage() {
     };
     visitorBtn?.addEventListener('click', onVisitorClick);
 
+    const parentBtn = document.getElementById('parentLoginBtn');
+    const onParentClick = () => {
+      clearVisitorSession();
+      window.location.href = 'parent.html';
+    };
+    parentBtn?.addEventListener('click', onParentClick);
+
     const forgotLink = document.getElementById('forgotPasswordLink');
     const onForgotClick = async (e: Event) => {
       e.preventDefault();
@@ -65,6 +72,7 @@ export default function LoginPage() {
     return () => {
       cleanupLogin?.();
       visitorBtn?.removeEventListener('click', onVisitorClick);
+      parentBtn?.removeEventListener('click', onParentClick);
       forgotLink?.removeEventListener('click', onForgotClick);
     };
   }, []);

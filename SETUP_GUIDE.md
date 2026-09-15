@@ -53,6 +53,46 @@ Start from `.env.example`. `.env.local` is ignored by Git. The Firebase web conf
 
 Firestore is the primary database for users, learners, school years, sections, settings, archived dropout records, transferred-out records, and aggregate public statistics.
 
+### Repeatable Firestore Provisioning
+
+The repository includes a Node-based bootstrap command for switching to a new Firebase project. It creates the metadata documents used by the application and can deploy the Firestore security rules. It does not copy learner data or create Firebase Authentication accounts.
+
+Install dependencies first:
+
+```bash
+npm install
+```
+
+Authenticate the Firebase Admin SDK using one of these supported methods:
+
+- Set `GOOGLE_APPLICATION_CREDENTIALS` to a service-account JSON file outside the repository.
+- Or use Google Application Default Credentials, for example after `gcloud auth application-default login`.
+
+Preview the writes without changing Firestore:
+
+```bash
+npm run firestore:provision -- --project your-new-project-id --school-year 2026-2027 --dry-run
+```
+
+For a new project, create the first user in **Firebase Authentication** first, copy its UID, then provision its Firestore profile:
+
+```bash
+npm run firestore:provision -- --project your-new-project-id --school-year 2026-2027 --make-current --admin-uid FIREBASE_AUTH_UID --admin-email admin@example.com --admin-name "School Administrator" --deploy-rules
+```
+
+The command safely uses merge writes, so rerunning it will not delete learners, sections, or existing user fields. It creates or updates:
+
+```text
+publicStats/summary
+schoolYears/{schoolYear}
+settings/currentSchoolYear
+users/{adminUid}                 # only when --admin-uid is supplied
+```
+
+The `Learners/{year}/records`, `Dropouts/{year}/records`, `TransferredOut/{year}/records`, and section paths are created when the application writes their first document. The `--deploy-rules` option uses the Firebase CLI via `npx`; the project configuration points it at [firestore.rules](firestore.rules).
+
+Never commit a service-account JSON file or place its path in a `VITE_*` variable. The existing `.gitignore` excludes `service-account*.json`, but credentials should preferably live outside the project directory.
+
 ## 4. Create The First School Admin
 
 The first user must be created manually because Firestore rules require an active School Admin before an administrator can create other profiles.

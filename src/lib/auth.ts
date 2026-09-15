@@ -85,7 +85,7 @@ export function initLoginPage() {
   authPersistenceReady.then(() => {
     if (disposed) return;
     unsubscribeAuth = auth.onAuthStateChanged((user) => {
-      if (user) window.location.href = `${APP_PAGE_PREFIX}dashboard.html`;
+    if (user && !user.isAnonymous) window.location.href = `${APP_PAGE_PREFIX}dashboard.html`;
     });
   });
 
@@ -282,7 +282,7 @@ export function requireAuth() {
     }
 
     const currentUser = auth.currentUser;
-    if (currentUser && currentUser.uid && currentUser.uid !== "guest") {
+    if (currentUser && currentUser.uid && currentUser.uid !== "guest" && !currentUser.isAnonymous) {
       handleSignedInUser(currentUser, "current-user");
       return;
     }
@@ -291,7 +291,8 @@ export function requireAuth() {
       let unsubscribe = () => {};
       unsubscribe = auth.onAuthStateChanged(async (user) => {
         unsubscribe();
-        if (!user) {
+        if (!user || user.isAnonymous) {
+          if (user?.isAnonymous) void auth.signOut();
           window.location.replace(loginPageUrl("?auth=required"));
           return;
         }

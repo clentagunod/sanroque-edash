@@ -21,6 +21,9 @@ service cloud.firestore {
     function isSignedIn() {
       return request.auth != null;
     }
+    function isAnonymous() {
+      return isSignedIn() && request.auth.token.firebase.sign_in_provider == "anonymous";
+    }
     function myRole() {
       return isSignedIn() && myProfile().data.status == "Active" ? myProfile().data.role : "";
     }
@@ -78,6 +81,11 @@ service cloud.firestore {
     // which contains aggregate dashboard data and no learner documents.
     match /Learners/{schoolYear}/records/{learnerId} {
       allow read, write: if isStaff();
+      allow get: if isAnonymous()
+        && resource.data.enrollmentStatus != "TRANSFERRED_OUT"
+        && resource.data.enrollmentStatus != "DROPPED_OUT"
+        && resource.data.eosyStatus != "Dropped Out"
+        && resource.data.transferOut != true;
     }
 
     // Deny everything else by default.

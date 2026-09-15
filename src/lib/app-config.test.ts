@@ -30,6 +30,7 @@ vi.stubGlobal('firebase', {
 const { ensureVisitorSession, isVisitorSession } = await import('./app-config');
 const { LPSApi } = await import('./sheets-api');
 const { loadDashboardData, renderRecentTable } = await import('./dashboard');
+const { sentenceCaseName } = await import('./learner-list');
 const firestoreApi = await import('./firestore-api');
 const demoData = await import('./demo-data');
 
@@ -252,6 +253,12 @@ describe('visitor session handling', () => {
 
     expect(profile.role).toBe('School Admin');
     expect(profile.name).toBe('Example Admin');
+  });
+});
+
+describe('learner name formatting', () => {
+  it('capitalizes each word in parent or guardian names', () => {
+    expect(sentenceCaseName('DELA CRUZ, JUAN')).toBe('Dela Cruz, Juan');
   });
 });
 

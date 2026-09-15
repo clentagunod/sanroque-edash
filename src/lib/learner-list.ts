@@ -288,7 +288,7 @@ export function renderLearnersTable(items) {
       <td>${escapeHtml(l.age === "" || l.age == null ? "—" : l.age)}</td>
       <td>${escapeHtml(l.gradeLevel)} - ${escapeHtml(l.section)}</td>
       <td>${escapeHtml(l.gender || "—")}</td>
-      <td>${escapeHtml(l.guardian) || "—"}</td>
+      <td>${escapeHtml(sentenceCaseName(l.guardian)) || "—"}</td>
       <td>${programBadges(l)}</td>
       <td>${escapeHtml(formatAppDate(l.dateAdded))}</td>
       <td>
@@ -535,7 +535,7 @@ export async function openEditModal(learnerId) {
   ["bosyNutritionalStatus", "mosyNutritionalStatus", "eosyNutritionalStatus"].forEach((field) => {
     setLearnerFieldValue("f_" + field, learner[field]);
   });
-  setLearnerFieldValue("f_guardian", learner.guardian);
+  setLearnerFieldValue("f_guardian", sentenceCaseName(learner.guardian));
   setLearnerFieldValue("f_contact", learner.contact);
   setLearnerFieldChecked("f_is4Ps", learner.is4Ps);
   setLearnerFieldChecked("f_isIP", learner.isIP);
@@ -571,7 +571,7 @@ export function getLearnerFieldValue(id) {
 
 export function sentenceCaseName(value) {
   const text = String(value || "").trim().toLowerCase();
-  return text ? text.charAt(0).toUpperCase() + text.slice(1) : "";
+  return text.replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
 }
 
 export function setLearnerFieldValue(id, value) {

@@ -1,10 +1,16 @@
 .maintenance-page {
   min-height: 100vh;
+  min-height: 100dvh;
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   display: grid;
   place-items: center;
   padding: 32px 20px;
+  padding-top: max(32px, env(safe-area-inset-top));
+  padding-right: max(20px, env(safe-area-inset-right));
+  padding-bottom: max(32px, env(safe-area-inset-bottom));
+  padding-left: max(20px, env(safe-area-inset-left));
   isolation: isolate;
   background:
     radial-gradient(circle at 12% 15%, rgba(111, 230, 193, .24), transparent 28%),
@@ -60,6 +66,10 @@
 .maintenance-card-topline {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  text-align: center;
+  flex-wrap: wrap;
   gap: 9px;
   padding: 8px 14px;
   border: 1px solid rgba(111, 230, 193, .28);
@@ -185,7 +195,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 8px;
+  line-height: 1.5;
   color: rgba(255,255,255,.46);
   font-size: 12px;
 }
@@ -199,6 +211,15 @@
   .maintenance-orb, .maintenance-card, .maintenance-status-dot, .maintenance-rocket, .maintenance-progress span { animation: none; }
 }
 @media (max-width: 480px) {
-  .maintenance-card { border-radius: 22px; }
+  .maintenance-page { padding: 24px 16px; padding-top: max(24px, env(safe-area-inset-top)); padding-right: max(16px, env(safe-area-inset-right)); padding-bottom: max(24px, env(safe-area-inset-bottom)); padding-left: max(16px, env(safe-area-inset-left)); }
+  .maintenance-card { border-radius: 22px; padding: 26px 20px; }
   .maintenance-art { height: 140px; }
+  .maintenance-external-art { max-width: 100%; max-height: 140px; }
+  .maintenance-lottie-art,
+  .maintenance-animation-frame { width: 100%; height: 140px; }
+  .maintenance-card h1 { font-size: clamp(32px, 10vw, 44px); }
+  .maintenance-copy { font-size: 14px; line-height: 1.6; }
+}
+@media (max-height: 700px) {
+  .maintenance-page { place-items: start center; }
 }

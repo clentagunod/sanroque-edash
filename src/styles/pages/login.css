@@ -677,6 +677,98 @@ body.dark-mode .login-panel .site-footer { color: var(--ink-500); }
   .login-brand, .login-headline, .login-stats, .login-card { animation: none; }
 }
 
+/* Keep the complete sign-in experience inside the viewport on short screens. */
+@media (max-height: 820px) {
+  .login-shell {
+    height: 100svh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .login-visual,
+  .login-panel {
+    min-height: 0;
+  }
+
+  .login-visual {
+    padding: 24px clamp(28px, 4vw, 52px);
+  }
+
+  .login-headline h1 {
+    font-size: clamp(2.5rem, 5vw, 4rem);
+    margin-bottom: 10px;
+  }
+
+  .login-headline p {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .login-school-tag {
+    margin-top: 12px;
+  }
+
+  .login-panel {
+    height: 100%;
+    padding: 18px clamp(20px, 4vw, 56px) 44px;
+  }
+
+  .login-card {
+    padding: 24px 28px 18px;
+  }
+
+  .login-card-kicker {
+    margin-bottom: 10px;
+  }
+
+  .login-card h2 {
+    font-size: 25px;
+  }
+
+  .login-card .sub {
+    margin-bottom: 16px;
+  }
+
+  .field {
+    margin-bottom: 11px;
+  }
+
+  .field input {
+    min-height: 40px;
+    padding: 9px 12px;
+  }
+
+  .field-row {
+    margin-bottom: 14px;
+  }
+
+  .btn-primary {
+    min-height: 40px;
+  }
+
+  .login-divider {
+    margin: 14px 0 10px;
+  }
+
+  .visitor-login {
+    padding: 8px 11px;
+  }
+
+  .visitor-login-icon {
+    width: 32px;
+    height: 32px;
+    flex-basis: 32px;
+  }
+
+  .login-footnote {
+    margin-top: 12px;
+  }
+
+  .login-panel .site-footer {
+    bottom: 12px;
+  }
+}
+
 /* Refined login treatment */
 .login-shell {
   color: var(--ink-900);
@@ -817,3 +909,95 @@ body.dark-mode .login-panel .site-footer { color: var(--ink-500); }
 @keyframes login-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .login-brand, .login-headline, .login-stats, .login-card { animation: none; } }
 @media (max-width: 860px) { .login-panel { min-height: 100svh; } }
+
+/* Final viewport fit override; keep this after the visual overrides above. */
+@media (max-height: 820px) {
+  .login-shell {
+    height: 100svh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .login-visual,
+  .login-panel {
+    min-height: 0;
+  }
+
+  .login-visual {
+    padding: 24px clamp(28px, 4vw, 52px);
+  }
+
+  .login-headline h1 {
+    font-size: clamp(2.5rem, 5vw, 4rem);
+    margin-bottom: 10px;
+  }
+
+  .login-headline p {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .login-school-tag {
+    margin-top: 12px;
+  }
+
+  .login-panel {
+    height: 100%;
+    padding: 18px clamp(20px, 4vw, 56px) 44px;
+  }
+
+  .login-card {
+    padding: 24px 28px 18px;
+  }
+
+  .login-card-kicker {
+    margin-bottom: 10px;
+  }
+
+  .login-card h2 {
+    font-size: 25px;
+  }
+
+  .login-card .sub {
+    margin-bottom: 16px;
+  }
+
+  .field {
+    margin-bottom: 11px;
+  }
+
+  .field input {
+    min-height: 40px;
+    padding: 9px 12px;
+  }
+
+  .field-row {
+    margin-bottom: 14px;
+  }
+
+  .btn-primary {
+    min-height: 40px;
+  }
+
+  .login-divider {
+    margin: 14px 0 10px;
+  }
+
+  .visitor-login {
+    padding: 8px 11px;
+  }
+
+  .visitor-login-icon {
+    width: 32px;
+    height: 32px;
+    flex-basis: 32px;
+  }
+
+  .login-footnote {
+    margin-top: 12px;
+  }
+
+  .login-panel .site-footer {
+    bottom: 12px;
+  }
+}

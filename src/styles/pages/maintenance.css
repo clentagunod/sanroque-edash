@@ -90,6 +90,16 @@
   object-fit: contain;
   border-radius: 18px;
 }
+.maintenance-lottie-art {
+  width: min(100%, 260px);
+  height: 176px;
+}
+.maintenance-animation-frame {
+  width: min(100%, 260px);
+  height: 176px;
+  border: 0;
+  background: transparent;
+}
 .maintenance-rocket {
   width: 76px;
   height: 112px;

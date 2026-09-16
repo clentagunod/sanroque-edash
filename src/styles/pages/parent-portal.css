@@ -1,10 +1,11 @@
-.parent-portal-shell { min-height: 100vh; color: #17243a; background: radial-gradient(circle at 0 0, #e4f0ff 0, transparent 34%), linear-gradient(135deg, #f6f9fd, #eef4f1); }
+.parent-portal-shell { min-height: 100vh; color: #17243a; background: radial-gradient(circle at 0 0, #e4f0ff 0, transparent 34%), linear-gradient(135deg, #f6f9fd, #eef4f1); transition: color .2s ease, background .2s ease; }
 .parent-portal-header { display: flex; align-items: center; justify-content: space-between; padding: 24px clamp(22px, 6vw, 84px); border-bottom: 1px solid rgba(55, 82, 116, .12); background: rgba(255, 255, 255, .68); backdrop-filter: blur(14px); }
 .parent-portal-brand { display: inline-flex; align-items: center; gap: 11px; color: inherit; text-decoration: none; }
 .parent-portal-brand-mark { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, #fff 0%, #dfeeff 100%); box-shadow: 0 7px 18px rgba(31, 95, 174, .15); overflow: hidden; }
 .parent-portal-brand-mark img { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; }
 .parent-portal-brand-mark svg { display: none; width: 25px; height: 25px; fill: none; stroke: #10254a; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .parent-portal-brand strong, .parent-portal-brand small { display: block; }
+.parent-portal-header-actions { display: inline-flex; align-items: center; justify-content: flex-end; gap: 10px; margin-left: auto; }
 .parent-portal-brand strong { font-size: 14px; }
 .parent-portal-brand small { margin-top: 2px; color: #748198; font-size: 11px; }
 .parent-portal-back { display: inline-flex; align-items: center; gap: 8px; padding: 10px 13px 10px 11px; border: 1px solid #cbd9ee; border-radius: 11px; color: #245b98; background: rgba(255, 255, 255, .72); box-shadow: 0 5px 14px rgba(40, 73, 117, .06); font-size: 12.5px; font-weight: 800; text-decoration: none; transition: border-color .2s ease, background .2s ease, box-shadow .2s ease, transform .2s ease; }
@@ -12,6 +13,10 @@
 .parent-portal-back:hover { border-color: #8faedc; background: #fff; box-shadow: 0 8px 18px rgba(36, 73, 126, .1); transform: translateY(-1px); }
 .parent-portal-back:hover svg { transform: translateX(-3px); }
 .parent-portal-back:focus-visible { outline: 3px solid #d8e8fb; outline-offset: 2px; }
+.parent-portal-theme-toggle { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; padding: 0; border: 1px solid #cbd9ee; border-radius: 50%; color: #245b98; background: rgba(255, 255, 255, .72); cursor: pointer; transition: border-color .2s ease, background .2s ease, color .2s ease, transform .2s ease; }
+.parent-portal-theme-toggle:hover { border-color: #8faedc; background: #fff; }
+.parent-portal-theme-toggle:hover { transform: rotate(12deg); }
+.parent-portal-theme-toggle svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .parent-portal-content { width: min(920px, calc(100% - 40px)); margin: 0 auto; padding: clamp(48px, 8vw, 92px) 0 50px; }
 .parent-portal-intro { max-width: 620px; margin-bottom: 30px; }
 .parent-portal-kicker { color: #c17b25; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
@@ -21,7 +26,7 @@
 .parent-search-card { padding: 22px; }
 .parent-search-card label { display: block; margin-bottom: 8px; color: #30435d; font-size: 13px; font-weight: 800; }
 .parent-search-row { display: flex; gap: 10px; }
-.parent-search-row input { min-width: 0; flex: 1; padding: 13px 14px; border: 1px solid #ced8e5; border-radius: 10px; color: #17243a; background: #fff; font: inherit; }
+.parent-search-row input { min-width: 0; flex: 1; padding: 13px 14px; border: 1px solid #ced8e5; border-radius: 10px; color: #17243a !important; background: #fff !important; caret-color: #17243a; font: inherit; }
 .parent-search-row input:focus { outline: 3px solid #d8e8fb; border-color: #3477c1; }
 .parent-search-row button { padding: 0 18px; border: 0; border-radius: 10px; color: #fff; background: #2368b1; font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; }
 .parent-search-row button:disabled { opacity: .6; cursor: wait; }
@@ -43,4 +48,47 @@
 .parent-portal-footer { padding: 0 20px 28px; color: #8a95a5; font-size: 11px; text-align: center; }
 .parent-portal-footer a { color: inherit; font-weight: 700; text-decoration: none; }
 .parent-portal-footer a:hover { color: #2864a9; text-decoration: underline; }
-@media (max-width: 560px) { .parent-portal-header { padding: 18px 20px; } .parent-portal-back { padding: 9px 10px; font-size: 12px; } .parent-portal-back span { display: none; } .parent-portal-back svg { width: 18px; height: 18px; } .parent-search-row { flex-direction: column; } .parent-search-row button { min-height: 44px; } .parent-detail-grid { grid-template-columns: 1fr; } .parent-result-heading { flex-direction: column; gap: 10px; } }
+@media (max-width: 560px) { .parent-portal-header { padding: 18px 20px; flex-wrap: wrap; gap: 10px; } .parent-portal-header-actions { margin-left: auto; } .parent-portal-back { padding: 9px 10px; font-size: 12px; } .parent-portal-back span { display: none; } .parent-portal-back svg { width: 18px; height: 18px; } .parent-search-row { flex-direction: column; } .parent-search-row button { min-height: 44px; } .parent-detail-grid { grid-template-columns: 1fr; } .parent-result-heading { flex-direction: column; gap: 10px; } }
+
+/* Portal-scoped dark theme. It intentionally does not use body.dark-mode so
+   the staff dashboard theme and its component colors remain independent. */
+.parent-portal-dark {
+  --parent-bg: #111111;
+  --parent-panel: rgba(27, 27, 27, .94);
+  --parent-panel-solid: #1b1b1b;
+  --parent-text: #f2f2f2;
+  --parent-muted: #a6a6a6;
+  --parent-border: #3a3a3a;
+  --parent-accent: #f0f0f0;
+  color: var(--parent-text);
+  background: radial-gradient(circle at 0 0, #292929 0, transparent 34%), linear-gradient(135deg, #111111, #181818);
+}
+.parent-portal-dark .parent-portal-header { border-bottom-color: rgba(255, 255, 255, .12); background: rgba(17, 17, 17, .9); }
+.parent-portal-dark .parent-portal-brand small,
+.parent-portal-dark .parent-portal-intro p,
+.parent-portal-dark .parent-search-note,
+.parent-portal-dark .parent-result-heading p,
+.parent-portal-dark .parent-portal-footer { color: var(--parent-muted); }
+.parent-portal-dark .parent-portal-brand-mark { background: linear-gradient(135deg, #f4f4f4, #bdbdbd); }
+.parent-portal-dark .parent-portal-back,
+.parent-portal-dark .parent-portal-theme-toggle { border-color: var(--parent-border); color: var(--parent-accent); background: rgba(25, 40, 61, .86); }
+.parent-portal-dark .parent-portal-back:hover,
+.parent-portal-dark .parent-portal-theme-toggle:hover { border-color: #707070; background: #292929; }
+.parent-portal-dark .parent-portal-intro h1,
+.parent-portal-dark .parent-result-heading h2 { color: var(--parent-text); }
+.parent-portal-dark .parent-search-card,
+.parent-portal-dark .parent-result { border-color: var(--parent-border); background: var(--parent-panel); box-shadow: 0 18px 42px rgba(0, 0, 0, .24); }
+.parent-portal-dark .parent-search-card label,
+.parent-portal-dark .parent-detail-section h2 { color: #cfddf1; }
+.parent-portal-dark .parent-search-row input { border-color: #4a4a4a; color: #f2f2f2 !important; background: #111111 !important; caret-color: #f2f2f2; }
+.parent-portal-dark .parent-search-row input:focus { outline-color: #555; border-color: #888; }
+.parent-portal-dark .parent-search-row button { color: #111; background: #f0f0f0; }
+.parent-portal-dark .parent-portal-message { color: #ffb5a5; background: #482b32; }
+.parent-portal-dark .parent-result-heading { border-bottom-color: var(--parent-border); }
+.parent-portal-dark .parent-readonly-badge { color: #9ce0c0; background: #1d4438; }
+.parent-portal-dark .parent-programs span { color: #e0e0e0; background: #303030; }
+.parent-portal-dark .parent-detail-grid { border-color: var(--parent-border); background: var(--parent-border); }
+.parent-portal-dark .parent-detail-grid > div { background: var(--parent-panel-solid); }
+.parent-portal-dark .parent-detail-grid dt { color: var(--parent-muted); }
+.parent-portal-dark .parent-detail-grid dd { color: #e5eefb; }
+.parent-portal-dark .parent-portal-footer a { color: var(--parent-accent); }

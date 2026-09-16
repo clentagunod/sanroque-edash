@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { auth, getPublicStats } from '../lib/firebase';
-import { forceLoginPageLightTheme } from '../lib/auth';
 import { fsGetLearner } from '../lib/firestore-api';
+import { Icon } from '../lib/icons';
 import '../styles/pages/parent-portal.css';
 
 type Learner = Record<string, any>;
@@ -56,15 +56,32 @@ export default function ParentPortalPage() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [schoolYear, setSchoolYear] = useState('');
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    try {
+      return window.localStorage.getItem('parent-portal-theme') === 'dark';
+    } catch {
+      return false;
+    }
+  });
 
   useEffect(() => {
     document.title = 'Parent Portal - San Roque Elementary School';
-    forceLoginPageLightTheme();
+    const hadStaffDarkMode = document.body.classList.contains('dark-mode');
+    document.body.classList.remove('dark-mode');
     getPublicStats().then((stats) => setSchoolYear(String(stats?.schoolYear || ''))).catch(() => {});
     return () => {
+      document.body.classList.toggle('dark-mode', hadStaffDarkMode);
       if (auth.currentUser?.isAnonymous) void auth.signOut();
     };
   }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('parent-portal-theme', isDarkMode ? 'dark' : 'light');
+    } catch {
+      // Theme preference remains session-local when storage is unavailable.
+    }
+  }, [isDarkMode]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -97,7 +114,7 @@ export default function ParentPortalPage() {
   }
 
   return (
-    <main className="parent-portal-shell">
+    <main className={`parent-portal-shell${isDarkMode ? ' parent-portal-dark' : ''}`}>
       <header className="parent-portal-header">
         <a className="parent-portal-brand" href="index.html" aria-label="Back to login">
           <span className="parent-portal-brand-mark">
@@ -106,10 +123,22 @@ export default function ParentPortalPage() {
           </span>
           <span><strong>San Roque ES</strong><small>Parent information portal</small></span>
         </a>
-        <a className="parent-portal-back" href="index.html">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
-          <span>Back to sign in</span>
-        </a>
+        <div className="parent-portal-header-actions">
+          <button
+            className="parent-portal-theme-toggle"
+            type="button"
+            onClick={() => setIsDarkMode((value) => !value)}
+            aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            aria-pressed={isDarkMode}
+            title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {isDarkMode ? <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: Icon.sun }} /> : <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: Icon.moon }} />}
+          </button>
+          <a className="parent-portal-back" href="index.html">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+            <span>Back to sign in</span>
+          </a>
+        </div>
       </header>
       <div className="parent-portal-content">
         <section className="parent-portal-intro">

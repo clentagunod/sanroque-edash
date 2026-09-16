@@ -5,7 +5,6 @@ import { PROGRAM_FIELD_MAP } from './learner-list';
 import { auth, db, getUserCreationAuth, userCreationAuth } from './firebase';
 import { appRole, appSessionId, isTeacher, isVisitorSession, storedAppProfile } from './app-config';
 import { LPSCache } from './cache';
-import { deleteArchiveRecord } from './archive-editor';
 
 /**
  * ============================================================================
@@ -846,19 +845,26 @@ export async function fsGetGradesProfiles(schoolYear) {
 }
 
 export async function fsGetTransferRecords(schoolYear, type = "all", gradeLevel = "", gender = "") {
+  const assignment = fsTeacherAssignment_();
   const [activeSnapshot, archivedSnapshot] = await Promise.all([
-    fsLearnersCollection_(schoolYear).get(),
+    assignment && assignment.schoolYear === fsNormalizeSchoolYear_(schoolYear)
+      ? fsAdvisoryLearnersCollection_(assignment).get()
+      : fsLearnersCollection_(schoolYear).get(),
     fsArchiveCollection_("transferredOut", schoolYear).get(),
   ]);
   const learners = [
     ...activeSnapshot.docs.map((doc) => ({ learnerId: doc.id, schoolYear, ...doc.data() })),
     ...archivedSnapshot.docs.map((doc) => ({ learnerId: doc.id, schoolYear, ...doc.data() })),
   ];
+  const scopedLearners = assignment
+    ? learners.filter((learner) => fsNormalizeValue_(learner.gradeLevel) === fsNormalizeValue_(assignment.gradeLevel)
+      && fsNormalizeValue_(learner.section) === fsNormalizeValue_(assignment.section))
+    : learners;
   const normalizedType = String(type || "all").trim().toLowerCase();
   const requestedType = normalizedType === "in" || normalizedType === "transfer in" ? "Transfer In"
     : normalizedType === "out" || normalizedType === "transfer out" ? "Transfer Out" : "";
   const seen = new Set();
-  return learners.filter((learner) => {
+  return scopedLearners.filter((learner) => {
     const transferType = learner.transferType || (learner.transferIn ? "Transfer In" : learner.transferOut ? "Transfer Out" : "");
     const uniqueKey = `${learner.learnerId}|${transferType}`;
     if (!transferType || seen.has(uniqueKey)) return false;
@@ -873,14 +879,25 @@ export async function fsGetArchiveRecords(archive, schoolYear) {
   const archiveName = String(archive || "").toLowerCase();
   const snapshot = await fsArchiveCollection_(archiveName, schoolYear).get();
   const records = snapshot.docs.map((doc) => ({ learnerId: doc.id, schoolYear, ...doc.data() }));
-  if (archiveName !== "dropout") return records;
+  const assignment = fsTeacherAssignment_();
+  const scopedRecords = assignment
+    ? records.filter((record) => fsNormalizeValue_(record.gradeLevel) === fsNormalizeValue_(assignment.gradeLevel)
+      && fsNormalizeValue_(record.section) === fsNormalizeValue_(assignment.section))
+    : records;
+  if (archiveName !== "dropout") return scopedRecords;
   // Compatibility for records tagged before archive transitions were added.
-  const activeSnapshot = await fsLearnersCollection_(schoolYear).get();
+  const activeSnapshot = assignment && assignment.schoolYear === fsNormalizeSchoolYear_(schoolYear)
+    ? await fsAdvisoryLearnersCollection_(assignment).get()
+    : await fsLearnersCollection_(schoolYear).get();
   const legacyDropouts = activeSnapshot.docs
     .map((doc) => ({ learnerId: doc.id, schoolYear, ...doc.data() }))
     .filter((learner) => fsLearnerArchiveType_(learner) === "dropout");
-  const seen = new Set(records.map((record) => record.learnerId));
-  return records.concat(legacyDropouts.filter((record) => !seen.has(record.learnerId)));
+  const scopedLegacyDropouts = assignment
+    ? legacyDropouts.filter((record) => fsNormalizeValue_(record.gradeLevel) === fsNormalizeValue_(assignment.gradeLevel)
+      && fsNormalizeValue_(record.section) === fsNormalizeValue_(assignment.section))
+    : legacyDropouts;
+  const seen = new Set(scopedRecords.map((record) => record.learnerId));
+  return scopedRecords.concat(scopedLegacyDropouts.filter((record) => !seen.has(record.learnerId)));
 }
 
 export async function fsUpdateArchiveRecord(archive, schoolYear, learnerId, learner) {
@@ -899,12 +916,20 @@ export async function fsUpdateArchiveRecord(archive, schoolYear, learnerId, lear
 
 export async function fsDeleteArchiveRecord(archive, schoolYear, learnerId) {
   const archiveName = String(archive || "").toLowerCase();
-  const collection = archiveName === "learners" ? fsLearnersCollection_(schoolYear) : fsArchiveCollection_(archiveName, schoolYear);
-  await collection.doc(learnerId).delete();
-  fsInvalidateReadCaches_(schoolYear);
-  await fsRefreshPublicStats();
-  fsAudit_("LEARNER_DELETE", { sheet: `${archiveName}_${schoolYear}`, recordId: learnerId });
-  return { deleted: true };
+  if (archiveName === "learners") return fsDeleteLearner(schoolYear, learnerId);
+  const collection = fsArchiveCollection_(archiveName, schoolYear);
+  const ref = collection.doc(String(learnerId || "").trim());
+  try {
+    const snapshot = await ref.get();
+    if (!snapshot.exists) throw new Error("This archived learner was already removed or could not be found.");
+    await ref.delete();
+    fsInvalidateReadCaches_(schoolYear);
+    await fsRefreshPublicStats();
+    fsAudit_("LEARNER_DELETE", { sheet: `${archiveName}_${schoolYear}`, recordId: learnerId, oldValue: JSON.stringify(snapshot.data()) });
+    return { deleted: true };
+  } catch (error) {
+    throw fsError_("Remove archived learner", error);
+  }
 }
 
 export async function fsGetReportsData(schoolYear) {
@@ -1114,7 +1139,9 @@ export async function fsSyncAdvisoryLearner_(batch, schoolYear, learner, previou
   const previousTargets = previousLearner ? await fsAdvisoryTargets_(schoolYear, previousLearner) : [];
   const currentKeys = new Set(currentTargets.map((target) => target.teacherKey));
   previousTargets.forEach((target) => {
-    if (!currentKeys.has(target.teacherKey)) batch.delete(fsAdvisoryLearnersCollection_(target).doc(String(learner.learnerId)));
+    if (!currentKeys.has(target.teacherKey)) {
+      batch.delete(fsAdvisoryLearnersCollection_(target).doc(String(previousLearner.learnerId)));
+    }
   });
   currentTargets.forEach((target) => batch.set(fsAdvisoryLearnersCollection_(target).doc(String(learner.learnerId)), {
     ...learner,
@@ -1227,17 +1254,30 @@ export async function fsDeleteLearners(schoolYear, learnerIds) {
   try {
     // Firestore batches cap out at 500 writes; chunk defensively so bulk
     // removal keeps working even for a very large selection.
-    const chunkSize = 450;
-    for (let i = 0; i < targetIds.length; i += chunkSize) {
-      const chunk = targetIds.slice(i, i + chunkSize);
-      const batch = db.batch();
-      const learners = await Promise.all(chunk.map((learnerId) => fsLearnersCollection_(targetYear).doc(learnerId).get()));
-      for (let index = 0; index < chunk.length; index += 1) {
-        batch.delete(fsLearnersCollection_(targetYear).doc(chunk[index]));
-        if (learners[index].exists) await fsSyncAdvisoryLearner_(batch, targetYear, null, learners[index].data());
-      }
+    const maxBatchWrites = 450;
+    let batch = db.batch();
+    let batchWrites = 0;
+    const commitBatch = async () => {
+      if (!batchWrites) return;
       await batch.commit();
+      batch = db.batch();
+      batchWrites = 0;
+    };
+    for (const learnerId of targetIds) {
+      const ref = fsLearnersCollection_(targetYear).doc(learnerId);
+      const snapshot = await ref.get();
+      batch.delete(ref);
+      batchWrites += 1;
+      if (snapshot.exists) {
+        const advisoryTargets = await fsAdvisoryTargets_(targetYear, snapshot.data());
+        for (const target of advisoryTargets) {
+          if (batchWrites >= maxBatchWrites) await commitBatch();
+          batch.delete(fsAdvisoryLearnersCollection_(target).doc(learnerId));
+          batchWrites += 1;
+        }
+      }
     }
+    await commitBatch();
     fsInvalidateReadCaches_(targetYear);
     void fsRefreshPublicStats().catch(() => {});
     fsAudit_("LEARNER_DELETE", { sheet: `learners_${targetYear}`, recordId: targetIds.join(", ") });
@@ -1256,4 +1296,5 @@ if (typeof LPSApi !== "undefined") {
   LPSApi.updateLearner = (learnerId, learner, schoolYear) => fsUpdateLearner(schoolYear, learnerId, learner);
   LPSApi.deleteLearner = (learnerId, schoolYear) => fsDeleteLearner(schoolYear, learnerId);
   LPSApi.deleteLearners = (learnerIds, schoolYear) => fsDeleteLearners(schoolYear, learnerIds);
+  LPSApi.deleteArchiveRecord = (archive, schoolYear, learnerId) => fsDeleteArchiveRecord(archive, schoolYear, learnerId);
 }

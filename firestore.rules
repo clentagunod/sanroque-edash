@@ -114,11 +114,15 @@ service cloud.firestore {
         || (isTeacher() && request.resource.data.gradeLevel == myProfile().data.teacherAssignment.gradeLevel
           && request.resource.data.section == myProfile().data.teacherAssignment.section
           && schoolYear == myProfile().data.teacherAssignment.schoolYear);
-      allow update, delete: if isAdmin() || isRegistrar()
+      allow update: if isAdmin() || isRegistrar()
         || (isTeacher() && resource.data.gradeLevel == myProfile().data.teacherAssignment.gradeLevel
           && resource.data.section == myProfile().data.teacherAssignment.section
           && request.resource.data.gradeLevel == myProfile().data.teacherAssignment.gradeLevel
           && request.resource.data.section == myProfile().data.teacherAssignment.section
+          && schoolYear == myProfile().data.teacherAssignment.schoolYear);
+      allow delete: if isAdmin() || isRegistrar()
+        || (isTeacher() && resource.data.gradeLevel == myProfile().data.teacherAssignment.gradeLevel
+          && resource.data.section == myProfile().data.teacherAssignment.section
           && schoolYear == myProfile().data.teacherAssignment.schoolYear);
       allow get: if isAnonymous()
         && resource.data.enrollmentStatus != "TRANSFERRED_OUT"

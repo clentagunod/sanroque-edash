@@ -4,6 +4,8 @@ import LoginPage from './pages/LoginPage';
 import ParentPortalPage from './pages/ParentPortalPage';
 import RouteErrorBoundary from './components/RouteErrorBoundary';
 import RouteLoadingFallback from './components/RouteLoadingFallback';
+import MaintenancePage from './pages/MaintenancePage';
+import { APP_CONFIG } from './lib/app-config';
 
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const MasterlistPage = lazy(() => import('./pages/MasterlistPage'));
@@ -39,6 +41,10 @@ const EduaiPage = lazy(() => import('./pages/EduaiPage'));
  * README.md for the architecture overview.
  */
 export default function App() {
+  if (APP_CONFIG.maintenanceMode) {
+    return <MaintenancePage />;
+  }
+
   return (
     <RouteErrorBoundary>
       <Suspense fallback={<RouteLoadingFallback />}>

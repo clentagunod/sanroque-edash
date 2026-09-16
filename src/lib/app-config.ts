@@ -1,7 +1,13 @@
 // @ts-nocheck -- ported from the original site; behavior preserved, not yet fully typed.
 const env = import.meta.env;
 
+// Set VITE_MAINTENANCE_MODE=true in Vercel to show the maintenance page
+// without changing the application code that you use locally.
+export const MAINTENANCE_MODE = env.VITE_MAINTENANCE_MODE === "true";
+
 export const APP_CONFIG = Object.freeze({
+  maintenanceMode: MAINTENANCE_MODE,
+  maintenanceAnimationUrl: env.VITE_MAINTENANCE_ANIMATION_URL || "",
   firebase: {
     apiKey: env.VITE_FIREBASE_API_KEY || "",
     authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || "",

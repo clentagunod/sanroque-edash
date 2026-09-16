@@ -100,10 +100,16 @@ export default function ParentPortalPage() {
     <main className="parent-portal-shell">
       <header className="parent-portal-header">
         <a className="parent-portal-brand" href="index.html" aria-label="Back to login">
-          <span className="parent-portal-brand-mark">SR</span>
+          <span className="parent-portal-brand-mark">
+            <img src="/assets/school-logo.png" alt="" width="30" height="30" onError={(event) => { event.currentTarget.style.display = 'none'; const fallback = event.currentTarget.nextElementSibling as SVGElement | null; if (fallback) fallback.style.display = 'block'; }} />
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" /></svg>
+          </span>
           <span><strong>San Roque ES</strong><small>Parent information portal</small></span>
         </a>
-        <a className="parent-portal-back" href="index.html">Back to sign in</a>
+        <a className="parent-portal-back" href="index.html">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+          <span>Back to sign in</span>
+        </a>
       </header>
       <div className="parent-portal-content">
         <section className="parent-portal-intro">
@@ -139,7 +145,7 @@ export default function ParentPortalPage() {
           </section>
         )}
       </div>
-      <footer className="parent-portal-footer">San Roque Elementary School · Parent information portal</footer>
+      <footer className="parent-portal-footer">© 2026 San Roque Elementary School · Courtesy of <a href="https://github.com/clentagunod" target="_blank" rel="noopener noreferrer">ClentIndustries</a></footer>
     </main>
   );
 }

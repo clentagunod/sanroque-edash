@@ -135,6 +135,7 @@ export function initLoginPage() {
             uid: String(freshProfile.userId || freshProfile.uid || credential.user.uid),
             name: freshProfile.name || "",
             role: freshProfile.role || "",
+            teacherAssignment: freshProfile.teacherAssignment || null,
           };
         }
       } catch (error) {
@@ -218,6 +219,7 @@ export function requireAuth() {
           uid: user?.uid || profile.uid || "",
           role: profile.role || "",
           name: profile.name || cachedProfile?.name || "",
+          teacherAssignment: profile.teacherAssignment || cachedProfile?.teacherAssignment || null,
         })
       );
 
@@ -247,6 +249,7 @@ export function requireAuth() {
           uid: mergedProfile.uid,
           role: mergedProfile.role || "",
           name: mergedProfile.name || "",
+          teacherAssignment: mergedProfile.teacherAssignment || null,
         })
       );
 

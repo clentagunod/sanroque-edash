@@ -145,6 +145,8 @@ export function isVisitorSession() {
 }
 export function canManageLearners() { return ["School Admin", "Registrar", "Teacher"].includes(appRole()); }
 export function isSchoolAdmin() { return appRole() === "School Admin"; }
+export function isRegistrar() { return appRole() === "Registrar"; }
+export function isTeacher() { return appRole() === "Teacher"; }
 export function canViewGradesProfile() {
   const role = appRole();
   return !role || ["School Admin", "Registrar", "Teacher"].includes(role);

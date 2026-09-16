@@ -1,12 +1,17 @@
 // @ts-nocheck -- ported from the original site; behavior preserved, not yet fully typed.
 import { LPSApi } from './sheets-api';
+import { isSchoolAdmin } from './app-config';
 import { requireAuth } from './auth';
 import { APP_CONFIG } from './app-config';
-import { escapeHtml, renderShell } from './shell';
+import { appPageHref, escapeHtml, renderShell } from './shell';
 
 export let auditRecords = [];
 
 export async function initAuditLog() {
+  if (!isSchoolAdmin()) {
+    window.location.replace(appPageHref("dashboard.html"));
+    return;
+  }
   renderShell("audit-log", "Audit Log");
   document.getElementById("auditSearch")?.addEventListener("input", renderFilteredAuditLog);
   document.getElementById("auditRefreshBtn")?.addEventListener("click", loadAuditLog);

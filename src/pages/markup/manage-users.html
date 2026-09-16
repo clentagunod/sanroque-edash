@@ -114,6 +114,12 @@
             <option value="Visitor">Visitor — read only</option>
           </select>
         </div>
+        <div class="field" id="teacherAssignmentFields" hidden>
+          <label for="u_teacher_year">Teacher assignment</label>
+          <select id="u_teacher_year" aria-label="Teacher school year"></select>
+          <select id="u_teacher_section" aria-label="Teacher grade and section" required></select>
+          <small class="field-hint">Teachers can access and manage learners in this grade and section only.</small>
+        </div>
         <div class="field">
           <label for="u_status">Status</label>
           <select id="u_status" required>
@@ -127,6 +133,7 @@
         <button type="button" class="btn btn-secondary" id="userModalCancel">Cancel</button>
         <button type="submit" class="btn btn-primary" style="width:auto;" id="userSaveBtn">Save user</button>
       </div>
+      <div id="userFormStatus" class="form-alert" role="status" aria-live="polite" hidden></div>
     </form>
   </div>
 </div>

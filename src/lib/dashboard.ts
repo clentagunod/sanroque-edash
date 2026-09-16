@@ -3,9 +3,9 @@ import { LPSApi } from './sheets-api';
 import { escapeHtml, formatAppDate, renderShell, todayFormatted } from './shell';
 import { requireAuth } from './auth';
 import { DEMO_SUMMARY, isSheetsApiConfigured } from './demo-data';
-import { isVisitorSession } from './app-config';
+import { isTeacher, isVisitorSession } from './app-config';
 import { Icon } from './icons';
-import { fsGetPublicStats, fsNormalizeSchoolYear_, fsRefreshPublicStats, fsSubscribeLearners, fsSubscribePublicStats, fsSubscribeRecentLearners } from './firestore-api';
+import { fsGetLearners, fsGetPublicStats, fsNormalizeSchoolYear_, fsRefreshPublicStats, fsSubscribeLearners, fsSubscribePublicStats, fsSubscribeRecentLearners } from './firestore-api';
 import { initYearSwitcher } from './school-year';
 
 export let dashboardLearnerUnsubscribe = null;
@@ -103,6 +103,25 @@ export function renderEmptyDashboard_(schoolYear) {
 }
 
 export async function loadDashboardData(schoolYear) {
+  if (isTeacher() && schoolYear && typeof fsSubscribeLearners === "function") {
+    dashboardPublicStatsUnsubscribe?.();
+    dashboardRecentLearnersUnsubscribe?.();
+    dashboardLearnerUnsubscribe?.();
+    const renderTeacherDashboard = (learners) => {
+      const summary = summarizeFirestoreLearners(learners);
+      renderStatCards(summary);
+      renderDonut(summary);
+      renderBarChart(summary);
+      renderRecentTable(summary.recentLearners);
+      renderProgramSummary(summary);
+      const lastSynced = document.getElementById("lastSynced");
+      if (lastSynced) lastSynced.textContent = summary.lastSynced;
+    };
+    const initialLearners = await fsGetLearners(schoolYear);
+    renderTeacherDashboard(initialLearners);
+    dashboardLearnerUnsubscribe = fsSubscribeLearners(schoolYear, renderTeacherDashboard, (error) => showDashboardDataError(schoolYear, error));
+    return;
+  }
   const renderPublicFallback = async (selectedYear = schoolYear) => {
     try {
       const publicStats = typeof fsGetPublicStats === "function" ? await getDashboardPublicStats().catch(() => null) : null;

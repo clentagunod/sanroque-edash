@@ -1,5 +1,5 @@
 // @ts-nocheck -- ported from the original site; behavior preserved, not yet fully typed.
-import { FS_DROPOUTS, FS_LEARNERS, FS_SCHOOL_YEARS, FS_SECTIONS, FS_SETTINGS, FS_TRANSFERRED_OUT, FS_USERS } from './firestore-api';
+import { FS_DROPOUTS, FS_LEARNERS, FS_SCHOOL_YEARS, FS_SETTINGS, FS_TRANSFERRED_OUT, FS_USERS, fsGetSections } from './firestore-api';
 import { APP_CONFIG } from './app-config';
 import { clearButtonLoading, setButtonLoading, showToast } from './shell';
 import { auth, db } from './firebase';
@@ -37,7 +37,7 @@ export async function collectFirestoreBackup() {
   const years = yearsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })).sort((a, b) => String(a.id).localeCompare(String(b.id)));
   const [users, sections, publicStats] = await Promise.all([
     backupCollection(db.collection(FS_USERS)),
-    backupCollection(db.collection(FS_SECTIONS)),
+    fsGetSections(""),
     backupCollection(db.collection("publicStats")),
   ]);
   const settings = [];

@@ -165,6 +165,8 @@ export function wireUserModal() {
   document.getElementById("userModalCancel").addEventListener("click", () => closeUserModal());
   backdrop.addEventListener("click", (e) => { if (e.target === backdrop) closeUserModal(); });
   document.getElementById("userForm").addEventListener("submit", handleUserFormSubmit);
+  document.getElementById("u_role").addEventListener("change", toggleTeacherAssignmentFields);
+  document.getElementById("u_teacher_year").addEventListener("change", () => loadTeacherAssignmentSections());
 
   const delBackdrop = document.getElementById("userDeleteModalBackdrop");
   document.getElementById("userDeleteModalCancel").addEventListener("click", closeDeleteUserModal);
@@ -178,6 +180,9 @@ export function openAddUserModal() {
   document.getElementById("userForm").reset();
   document.getElementById("userPasswordField").hidden = false;
   document.getElementById("u_password").required = true;
+  const status = document.getElementById("userFormStatus");
+  if (status) { status.hidden = true; status.textContent = ""; }
+  toggleTeacherAssignmentFields();
   userFormInitialSnapshot = formSnapshot(document.getElementById("userForm"));
   document.getElementById("userModalBackdrop").classList.add("is-open");
 }
@@ -194,8 +199,53 @@ export function openEditUserModal(userId) {
   document.getElementById("u_password").value = "";
   document.getElementById("u_role").value = u.role;
   document.getElementById("u_status").value = u.status;
+  const status = document.getElementById("userFormStatus");
+  if (status) { status.hidden = true; status.textContent = ""; }
+  toggleTeacherAssignmentFields(u.teacherAssignment || {});
   userFormInitialSnapshot = formSnapshot(document.getElementById("userForm"));
   document.getElementById("userModalBackdrop").classList.add("is-open");
+}
+
+function teacherKey(value) {
+  return String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "unassigned";
+}
+
+function advisoryKey(value) {
+  return teacherKey(value);
+}
+
+export async function loadTeacherAssignmentSections(selectedSection = "") {
+  const year = document.getElementById("u_teacher_year")?.value;
+  const sectionSelect = document.getElementById("u_teacher_section");
+  if (!sectionSelect || !year) return;
+  try {
+    const sections = await LPSApi.getSections(year);
+    sectionSelect.innerHTML = sections.length
+      ? sections.map((section) => {
+        const value = encodeURIComponent(JSON.stringify({ gradeLevel: section.gradeLevel, section: section.section }));
+        return `<option value="${value}">${escapeHtml(section.gradeLevel)} · ${escapeHtml(section.section)}</option>`;
+      }).join("")
+      : `<option value="">No sections configured</option>`;
+    if (selectedSection) sectionSelect.value = encodeURIComponent(JSON.stringify({ gradeLevel: selectedSection.gradeLevel, section: selectedSection.section }));
+  } catch (error) {
+    sectionSelect.innerHTML = `<option value="">Unable to load sections</option>`;
+  }
+}
+
+export async function toggleTeacherAssignmentFields(selected = {}) {
+  const role = document.getElementById("u_role")?.value;
+  const wrapper = document.getElementById("teacherAssignmentFields");
+  const yearSelect = document.getElementById("u_teacher_year");
+  const sectionSelect = document.getElementById("u_teacher_section");
+  if (!wrapper || !yearSelect || !sectionSelect) return;
+  const required = role === "Teacher";
+  wrapper.hidden = !required;
+  sectionSelect.required = required;
+  if (!required) return;
+  const years = await LPSApi.getSchoolYears();
+  yearSelect.innerHTML = years.map((year) => `<option value="${escapeHtml(year.schoolYear)}">${escapeHtml(year.schoolYear)}</option>`).join("");
+  yearSelect.value = selected.schoolYear || years.find((year) => year.isCurrent)?.schoolYear || years[0]?.schoolYear || "";
+  await loadTeacherAssignmentSections(selected);
 }
 
 export function closeUserModal(force = false) {
@@ -206,6 +256,10 @@ export function closeUserModal(force = false) {
 
 export async function handleUserFormSubmit(e) {
   e.preventDefault();
+  const saveBtn = document.getElementById("userSaveBtn");
+  const status = document.getElementById("userFormStatus");
+  setButtonLoading(saveBtn, "Saving user…");
+  if (status) { status.hidden = true; status.textContent = ""; }
   const record = {
     name: document.getElementById("u_name").value.trim(),
     email: document.getElementById("u_email").value.trim(),
@@ -213,9 +267,14 @@ export async function handleUserFormSubmit(e) {
     status: document.getElementById("u_status").value,
     password: document.getElementById("u_password").value,
   };
-  const saveBtn = document.getElementById("userSaveBtn");
-  setButtonLoading(saveBtn, "Saving user…");
   try {
+    if (record.role === "Teacher") {
+      let selected;
+      try { selected = JSON.parse(decodeURIComponent(document.getElementById("u_teacher_section").value || "")); }
+      catch (error) { throw new Error("Select a valid teacher grade and section."); }
+      record.teacherAssignment = { schoolYear: document.getElementById("u_teacher_year").value, ...selected, teacherName: record.name, teacherKey: teacherKey(record.name), gradeKey: advisoryKey(selected.gradeLevel), sectionKey: advisoryKey(selected.section) };
+      if (!record.teacherAssignment.schoolYear || !record.teacherAssignment.gradeLevel || !record.teacherAssignment.section) throw new Error("Teacher grade, section, and school year are required.");
+    } else record.teacherAssignment = null;
     if (MU.editingId) {
       await LPSApi.updateUser(MU.editingId, record);
       showToast("User updated.", "success");
@@ -227,7 +286,9 @@ export async function handleUserFormSubmit(e) {
     closeUserModal(true);
     loadUsers();
   } catch (err) {
-    showToast(err.message, "error");
+    const message = err.message || "The user could not be saved.";
+    if (status) { status.hidden = false; status.textContent = message; }
+    showToast(message, "error");
   } finally {
     clearButtonLoading(saveBtn);
   }

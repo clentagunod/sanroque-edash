@@ -28,7 +28,16 @@ service cloud.firestore {
       return isSignedIn() && myProfile().data.status == "Active" ? myProfile().data.role : "";
     }
     function isAdmin() { return myRole() == "School Admin"; }
+    function isRegistrar() { return myRole() == "Registrar"; }
+    function isTeacher() { return myRole() == "Teacher"; }
     function isStaff() { return myRole() in ["School Admin", "Registrar", "Teacher"]; }
+    function isAssignedTeacher(schoolYear, gradeLevel, section, teacherKey) {
+      return isTeacher()
+        && myProfile().data.teacherAssignment.schoolYear == schoolYear
+        && myProfile().data.teacherAssignment.gradeKey == gradeLevel
+        && myProfile().data.teacherAssignment.sectionKey == section
+        && myProfile().data.teacherAssignment.teacherKey == teacherKey;
+    }
 
     // --- Users: everyone signed in can read the directory (needed for
     // dropdowns like "adviser"), but only an admin can create/edit/remove
@@ -51,9 +60,25 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
-    match /sections/{sectionId} {
-      allow read: if isSignedIn();
+    match /Sections/{schoolYear} {
+      allow read: if isStaff();
       allow write: if isAdmin();
+      match /grades/{gradeKey} {
+        allow read: if isStaff();
+        allow write: if isAdmin();
+        match /sections/{sectionKey} {
+          allow read: if isStaff();
+          allow write: if isAdmin();
+          match /teachers/{teacherKey} {
+            allow read: if isStaff();
+            allow write: if isAdmin();
+          }
+        }
+      }
+      match /directory/{directoryId} {
+        allow read: if isStaff();
+        allow write: if isAdmin();
+      }
     }
     match /settings/{settingId} {
       allow read: if isSignedIn();
@@ -80,12 +105,34 @@ service cloud.firestore {
     // Visitors never read this collection. They read only publicStats/summary,
     // which contains aggregate dashboard data and no learner documents.
     match /Learners/{schoolYear}/records/{learnerId} {
-      allow read, write: if isStaff();
+      allow list: if isAdmin() || isRegistrar();
+      allow get: if isAdmin() || isRegistrar()
+        || (isTeacher() && resource.data.gradeLevel == myProfile().data.teacherAssignment.gradeLevel
+          && resource.data.section == myProfile().data.teacherAssignment.section
+          && schoolYear == myProfile().data.teacherAssignment.schoolYear);
+      allow create: if isAdmin() || isRegistrar()
+        || (isTeacher() && request.resource.data.gradeLevel == myProfile().data.teacherAssignment.gradeLevel
+          && request.resource.data.section == myProfile().data.teacherAssignment.section
+          && schoolYear == myProfile().data.teacherAssignment.schoolYear);
+      allow update, delete: if isAdmin() || isRegistrar()
+        || (isTeacher() && resource.data.gradeLevel == myProfile().data.teacherAssignment.gradeLevel
+          && resource.data.section == myProfile().data.teacherAssignment.section
+          && request.resource.data.gradeLevel == myProfile().data.teacherAssignment.gradeLevel
+          && request.resource.data.section == myProfile().data.teacherAssignment.section
+          && schoolYear == myProfile().data.teacherAssignment.schoolYear);
       allow get: if isAnonymous()
         && resource.data.enrollmentStatus != "TRANSFERRED_OUT"
         && resource.data.enrollmentStatus != "DROPPED_OUT"
         && resource.data.eosyStatus != "Dropped Out"
         && resource.data.transferOut != true;
+    }
+
+    match /advisory/{schoolYear}/grades/{gradeLevel}/sections/{section}/teachers/{teacherKey} {
+      allow read: if isAdmin() || isRegistrar() || isAssignedTeacher(schoolYear, gradeLevel, section, teacherKey);
+      allow write: if isAdmin() || isRegistrar();
+      match /learners/{learnerId} {
+        allow read, write: if isAdmin() || isRegistrar() || isAssignedTeacher(schoolYear, gradeLevel, section, teacherKey);
+      }
     }
 
     // Deny everything else by default.

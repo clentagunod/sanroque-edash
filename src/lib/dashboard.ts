@@ -63,6 +63,13 @@ export function renderDashboardContext() {
   const profile = storedAppProfile() || {};
   const welcome = document.getElementById("dashboardWelcome");
   const scope = document.getElementById("dashboardScope");
+  const dashboardContext = document.querySelector(".dashboard-context");
+
+  if (isVisitorSession()) {
+    if (dashboardContext) dashboardContext.remove();
+    return;
+  }
+
   if (!welcome || !scope) return;
   const displayName = String(profile.name || profile.email || "there").trim();
   welcome.textContent = `Welcome, ${displayName}`;

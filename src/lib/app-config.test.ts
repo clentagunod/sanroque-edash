@@ -78,6 +78,26 @@ describe('visitor session handling', () => {
     expect(JSON.parse(sessionStorage.getItem('lps_user_profile') || '{}')).toMatchObject({ uid: 'guest', role: 'Visitor' });
   });
 
+  it('hides the dashboard welcome copy for visitor sessions', async () => {
+    document.body.innerHTML = `
+      <section class="dashboard-context">
+        <div>
+          <p class="dashboard-welcome" id="dashboardWelcome">Welcome</p>
+          <p class="dashboard-context-title">Your operational overview</p>
+        </div>
+        <div class="dashboard-scope" id="dashboardScope">School-wide registrar view</div>
+      </section>
+    `;
+    sessionStorage.setItem('lps_user_profile', JSON.stringify({ email: '', uid: 'guest', role: 'Visitor' }));
+    sessionStorage.setItem('lps_guest_session', '1');
+    localStorage.setItem('lps_guest_session', String(Date.now() + 60_000));
+
+    const { renderDashboardContext } = await import('./dashboard');
+    renderDashboardContext();
+
+    expect(document.querySelector('.dashboard-context')).toBeNull();
+  });
+
   it('renders cached public stats immediately when the live dashboard listeners are stalled', async () => {
     document.body.innerHTML = `
       <div id="demoBanner"></div>

@@ -121,6 +121,7 @@ Set these values in `.env.local` for local development:
 - `VITE_AUDIT_LOG_API_URL`: deployed `/exec` URL for `apps-script/AuditLog.gs`.
 - `VITE_FEEDBACK_API_URL`: deployed `/exec` URL for `apps-script/Feedback.gs`.
 - `VITE_BACKUP_SPREADSHEET_URL`: optional link to the backup spreadsheet or backup service.
+- `VITE_TEST_MODE`: set to `true` to show the low-contrast TEST MODE stamp across authenticated pages; leave `false` to hide it.
 
 The application database does not require a Google Sheets URL. The current Firestore integration is initialized by `src/main.tsx` and `src/lib/firestore-api.ts`.
 

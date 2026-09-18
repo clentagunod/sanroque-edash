@@ -3,7 +3,7 @@ import { LPSApi } from './sheets-api';
 import { displayNameFromEmail } from './auth';
 import { PROGRAM_FIELD_MAP } from './learner-list';
 import { auth, db, getUserCreationAuth, userCreationAuth } from './firebase';
-import { appRole, appSessionId, isTeacher, isVisitorSession, storedAppProfile } from './app-config';
+import { appRole, appSessionId, isTeacher, isVisitorSession, setAppUserProfile, storedAppProfile } from './app-config';
 import { LPSCache } from './cache';
 
 /**
@@ -80,8 +80,8 @@ export function fsTeacherAssignment_() {
   const teacherKey = fsAdvisoryKey_(assignment.teacherKey || teacherName);
   return schoolYear && gradeLevel && section && teacherName ? {
     schoolYear, gradeLevel, section, teacherName, teacherKey,
-    gradeKey: fsAdvisoryKey_(assignment.gradeKey || gradeLevel),
-    sectionKey: fsAdvisoryKey_(assignment.sectionKey || section),
+    gradeKey: fsAdvisoryKey_(gradeLevel),
+    sectionKey: fsAdvisoryKey_(section),
   } : null;
 }
 
@@ -91,6 +91,36 @@ export function fsAdvisoryLearnersCollection_(assignment) {
     .collection("sections").doc(assignment.sectionKey || fsAdvisoryKey_(assignment.section))
     .collection("teachers").doc(assignment.teacherKey)
     .collection("learners");
+}
+
+async function fsDeleteAdvisoryTeacher_(schoolYear, gradeKey, sectionKey, teacherKey) {
+  const teacherRef = db.collection(FS_ADVISORY).doc(schoolYear)
+    .collection("grades").doc(gradeKey)
+    .collection("sections").doc(sectionKey)
+    .collection("teachers").doc(teacherKey);
+  const learnerSnapshot = await teacherRef.collection("learners").get();
+  const refs = [...learnerSnapshot.docs.map((doc) => doc.ref), teacherRef];
+  for (let index = 0; index < refs.length; index += 450) {
+    const batch = db.batch();
+    refs.slice(index, index + 450).forEach((ref) => batch.delete(ref));
+    await batch.commit();
+  }
+}
+
+async function fsPopulateAdvisoryTeacher_(target) {
+  const learners = await fsGetAllLearners_(target.schoolYear);
+  const matchingLearners = learners.filter((learner) => fsIsActiveLearner_(learner)
+    && fsNormalizeValue_(fsNormalizeGrade_(learner.gradeLevel)) === fsNormalizeValue_(target.gradeLevel)
+    && fsNormalizeValue_(learner.section) === fsNormalizeValue_(target.section));
+  for (let index = 0; index < matchingLearners.length; index += 450) {
+    const batch = db.batch();
+    matchingLearners.slice(index, index + 450).forEach((learner) => batch.set(
+      fsAdvisoryLearnersCollection_(target).doc(String(learner.learnerId)),
+      { ...learner, advisoryTeacher: target.teacherName, advisoryUpdatedAt: firebase.firestore.FieldValue.serverTimestamp() },
+      { merge: true }
+    ));
+    await batch.commit();
+  }
 }
 
 export function fsArchiveCollection_(archive, schoolYear) {
@@ -215,6 +245,48 @@ function fsSubscribeLiveLearners_(schoolYear, onChange, onError) {
     ), onChange, onError);
 }
 
+function fsSubscribeTeacherLearners_(schoolYear, onChange, onError) {
+  const userId = String(auth.currentUser?.uid || "").trim();
+  if (!userId) return fsSubscribeLiveLearners_(schoolYear, onChange, onError);
+  let learnerUnsubscribe = null;
+  let stopped = false;
+  let activePath = "";
+  const userRef = db.collection(FS_USERS).doc(userId);
+  const updateProfile = (data) => {
+    const current = storedAppProfile() || {};
+    const profile = { ...current, ...data, uid: userId, userId };
+    setAppUserProfile(profile);
+    try { sessionStorage.setItem("lps_user_profile", JSON.stringify(profile)); } catch (error) { /* Ignore unavailable storage. */ }
+  };
+  const rebind = (data) => {
+    updateProfile(data || {});
+    const assignment = fsTeacherAssignment_();
+    const path = assignment && assignment.schoolYear === fsNormalizeSchoolYear_(schoolYear)
+      ? `${assignment.schoolYear}|${assignment.gradeKey}|${assignment.sectionKey}|${assignment.teacherKey}` : "unassigned";
+    if (path === activePath) return;
+    activePath = path;
+    learnerUnsubscribe?.();
+    learnerUnsubscribe = null;
+    if (stopped) return;
+    if (!assignment) {
+      if (typeof onChange === "function") onChange([]);
+      return;
+    }
+    learnerUnsubscribe = fsSubscribeLiveLearners_(schoolYear, onChange, onError);
+  };
+  const userUnsubscribe = userRef.onSnapshot((snapshot) => {
+    if (!snapshot.exists) return rebind({});
+    rebind({ ...snapshot.data(), userId, uid: userId });
+  }, (error) => {
+    if (typeof onError === "function") onError(fsError_("Live teacher assignment updates", error));
+  });
+  return () => {
+    stopped = true;
+    learnerUnsubscribe?.();
+    userUnsubscribe?.();
+  };
+}
+
 /* ---------------------------------------------------------------------------
  * USERS (fully migrated to Firestore)
  * ------------------------------------------------------------------------- */
@@ -259,7 +331,7 @@ export async function fsGetMyProfile(user = null) {
       status: data.status || "Active",
     };
   };
-  return typeof LPSCache === "undefined" ? load() : LPSCache.getOrLoad(`firestore_profile_${userId}`, load, 300000, 3600000);
+  return load();
 }
 
 export async function fsGetUsers() {
@@ -293,6 +365,7 @@ export async function fsAddUser(record) {
       teacherAssignment: record.role === "Teacher" ? record.teacherAssignment : null,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
+    await fsRefreshTeacherAdvisory_(null, { ...record, role: record.role, status: record.status || "Invited", teacherAssignment: record.teacherAssignment }, userId);
     try { await creationAuth.signOut(); } catch (signOutError) { /* Secondary auth cleanup is best effort. */ }
     fsInvalidateReadCaches_();
     fsAudit_("USER_ADD", { sheet: "users", recordId: userId, newValue: JSON.stringify({ name: record.name, email, role: record.role, status: record.status || "Invited" }) });
@@ -313,6 +386,7 @@ export async function fsUpdateUser(userId, record) {
     const ref = db.collection(FS_USERS).doc(userId);
     const before = await ref.get();
     await ref.set({ name: record.name, email: record.email, role: record.role, status: record.status, teacherAssignment: record.role === "Teacher" ? record.teacherAssignment : null }, { merge: true });
+    await fsRefreshTeacherAdvisory_(before.exists ? before.data() : null, { ...record, teacherAssignment: record.role === "Teacher" ? record.teacherAssignment : null }, userId);
     fsInvalidateReadCaches_();
     fsAudit_("USER_UPDATE", {
       sheet: "users", recordId: userId,
@@ -323,6 +397,86 @@ export async function fsUpdateUser(userId, record) {
   } catch (error) {
     throw fsError_("Update user", error);
   }
+}
+
+function fsTeacherTargetFromUser_(user, userId) {
+  const assignment = user?.teacherAssignment || {};
+  if (user?.role !== "Teacher" || user?.status !== "Active" || !assignment.schoolYear || !assignment.gradeLevel || !assignment.section) return null;
+  const teacherName = String(assignment.teacherName || user.name || "").trim();
+  if (!teacherName) return null;
+  return {
+    schoolYear: fsNormalizeSchoolYear_(assignment.schoolYear),
+    gradeLevel: fsNormalizeGrade_(assignment.gradeLevel),
+    section: String(assignment.section).trim(),
+    teacherName,
+    teacherKey: fsAdvisoryKey_(assignment.teacherKey || teacherName || userId),
+    gradeKey: fsAdvisoryKey_(fsNormalizeGrade_(assignment.gradeLevel)),
+    sectionKey: fsAdvisoryKey_(String(assignment.section).trim()),
+  };
+}
+
+async function fsRefreshTeacherAdvisory_(beforeUser, afterUser, userId) {
+  const oldTarget = fsTeacherTargetFromUser_(beforeUser, userId);
+  const newTarget = fsTeacherTargetFromUser_(afterUser, userId);
+  const targets = [oldTarget, newTarget].filter(Boolean).filter((target, index, all) => all.findIndex((item) => item.schoolYear === target.schoolYear && item.teacherKey === target.teacherKey) === index);
+  if (!targets.length) return;
+  const years = [...new Set(targets.map((target) => target.schoolYear))];
+  const learnersByYear = await Promise.all(years.map(async (year) => [year, await fsGetAllLearners_(year)]));
+  const learners = new Map(learnersByYear);
+  const maxBatchWrites = 450;
+  let batch = db.batch();
+  let writes = 0;
+  const commitBatch = async () => {
+    if (!writes) return;
+    await batch.commit();
+    batch = db.batch();
+    writes = 0;
+  };
+  const sameTarget = (left, right) => left && right
+    && left.schoolYear === right.schoolYear
+    && left.gradeKey === right.gradeKey
+    && left.sectionKey === right.sectionKey
+    && left.teacherKey === right.teacherKey;
+  if (newTarget) {
+    const yearRef = db.collection(FS_SECTIONS).doc(newTarget.schoolYear);
+    const gradeRef = yearRef.collection("grades").doc(newTarget.gradeKey);
+    const sectionRef = gradeRef.collection("sections").doc(newTarget.sectionKey);
+    const metadata = {
+      schoolYear: newTarget.schoolYear,
+      gradeLevel: newTarget.gradeLevel,
+      section: newTarget.section,
+      teacherName: newTarget.teacherName,
+      adviser: newTarget.teacherName,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    };
+    [
+      [yearRef, { schoolYear: newTarget.schoolYear, structureVersion: 1, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }],
+      [gradeRef, { schoolYear: newTarget.schoolYear, gradeLevel: newTarget.gradeLevel, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }],
+      [sectionRef, { schoolYear: newTarget.schoolYear, gradeLevel: newTarget.gradeLevel, section: newTarget.section, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }],
+      [sectionRef.collection("teachers").doc(newTarget.teacherKey), metadata],
+      [yearRef.collection("directory").doc(`${newTarget.gradeKey}-${newTarget.sectionKey}-${newTarget.teacherKey}`), metadata],
+    ].forEach(([ref, value]) => {
+      batch.set(ref, value, { merge: true });
+      writes += 1;
+    });
+  }
+  for (const target of targets) {
+    if (!sameTarget(target, newTarget)) continue;
+    const targetLearners = (learners.get(target.schoolYear) || []).filter((learner) => fsIsActiveLearner_(learner)
+      && fsNormalizeValue_(fsNormalizeGrade_(learner.gradeLevel)) === fsNormalizeValue_(fsNormalizeGrade_(target.gradeLevel))
+      && fsNormalizeValue_(learner.section) === fsNormalizeValue_(target.section));
+    for (const learner of targetLearners) {
+      if (writes >= maxBatchWrites) await commitBatch();
+      batch.set(fsAdvisoryLearnersCollection_(target).doc(String(learner.learnerId)), {
+        ...learner,
+        advisoryTeacher: target.teacherName,
+        advisoryUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+      writes += 1;
+    }
+  }
+  await commitBatch();
+  fsInvalidateReadCaches_();
 }
 
 export async function fsUpdateMyProfileName(name) {
@@ -669,18 +823,23 @@ export async function fsGetSections(schoolYear) {
   if (Array.isArray(live)) return live;
   const load = async () => {
     const years = schoolYear ? [String(schoolYear)] : (await fsGetSchoolYears()).map((year) => year.schoolYear);
-    const sections = [];
+    const sections = new Map();
     for (const year of years) {
       const snapshot = await db.collection(FS_SECTIONS).doc(year).collection("directory").get();
-      snapshot.docs.forEach((doc) => sections.push({ id: `${year}|${doc.id}`, ...doc.data() }));
+      snapshot.docs.forEach((doc) => {
+        const data = doc.data();
+        const key = fsSectionId_(year, data.gradeLevel, data.section);
+        const existing = sections.get(key);
+        sections.set(key, existing ? { ...existing, adviser: existing.adviser || data.adviser || data.teacherName || "" } : { ...data, id: fsSectionId_(year, data.gradeLevel, data.section, data.adviser || data.teacherName) });
+      });
     }
-    return sections;
+    return [...sections.values()];
   };
   return typeof LPSCache === "undefined" ? load() : LPSCache.getOrLoad(`firestore_sections_${schoolYear || "all"}`, load, 30000, 120000);
 }
 
-export function fsSectionId_(schoolYear, gradeLevel, section) {
-  return `${schoolYear}|${fsAdvisoryKey_(gradeLevel)}|${fsAdvisoryKey_(section)}`;
+export function fsSectionId_(schoolYear, gradeLevel, section, adviser = "") {
+  return `${schoolYear}|${fsAdvisoryKey_(gradeLevel)}|${fsAdvisoryKey_(section)}|${fsAdvisoryKey_(adviser || "unassigned")}`;
 }
 
 export async function fsSaveSection(section) {
@@ -695,8 +854,13 @@ export async function fsSaveSection(section) {
   const directory = db.collection(FS_SECTIONS).doc(schoolYear).collection("directory");
   if (section.id) {
     const [, oldGradeKey, oldSectionKey, oldTeacherKey] = String(section.id).split("|");
-    if (oldGradeKey && oldSectionKey && oldTeacherKey && oldTeacherKey !== fsAdvisoryKey_(adviser || "unassigned")) {
-      await gradeRef.collection("sections").doc(oldSectionKey).collection("teachers").doc(oldTeacherKey).delete();
+    const newTeacherKey = fsAdvisoryKey_(adviser || "unassigned");
+    if (oldGradeKey && oldSectionKey && oldTeacherKey) {
+      await fsDeleteAdvisoryTeacher_(schoolYear, oldGradeKey, oldSectionKey, oldTeacherKey);
+      const oldSectionRef = db.collection(FS_SECTIONS).doc(schoolYear).collection("grades").doc(oldGradeKey).collection("sections").doc(oldSectionKey);
+      if (oldGradeKey !== fsAdvisoryKey_(gradeLevel) || oldSectionKey !== fsAdvisoryKey_(sectionName)) await oldSectionRef.delete();
+      await oldSectionRef.collection("teachers").doc(oldTeacherKey).delete();
+      await directory.doc(`${oldGradeKey}-${oldSectionKey}-${oldTeacherKey}`).delete();
     }
   }
   await db.collection(FS_SECTIONS).doc(schoolYear).set({ schoolYear, structureVersion: 1, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
@@ -705,6 +869,9 @@ export async function fsSaveSection(section) {
   if (adviser) {
     await teacherRef.set({ teacherName: adviser, adviser, schoolYear, gradeLevel, section: sectionName, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
     await directory.doc(`${fsAdvisoryKey_(gradeLevel)}-${fsAdvisoryKey_(sectionName)}-${fsAdvisoryKey_(adviser)}`).set({ teacherName: adviser, adviser, schoolYear, gradeLevel, section: sectionName, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+    await fsPopulateAdvisoryTeacher_({ schoolYear, gradeLevel, section: sectionName, teacherName: adviser, teacherKey: fsAdvisoryKey_(adviser), gradeKey: fsAdvisoryKey_(gradeLevel), sectionKey: fsAdvisoryKey_(sectionName) });
+  } else {
+    await directory.doc(`${fsAdvisoryKey_(gradeLevel)}-${fsAdvisoryKey_(sectionName)}-unassigned`).set({ schoolYear, gradeLevel, section: sectionName, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
   }
   fsInvalidateReadCaches_(schoolYear);
   return { id: `${schoolYear}|${fsAdvisoryKey_(gradeLevel)}|${fsAdvisoryKey_(sectionName)}|${fsAdvisoryKey_(adviser || "unassigned")}`, schoolYear, gradeLevel, section: sectionName, adviser };
@@ -714,7 +881,11 @@ export async function fsDeleteSection(sectionId) {
   if (!sectionId) throw new Error("A section ID is required.");
   const [schoolYear, gradeKey, sectionKey, teacherKey] = String(sectionId).split("|");
   if (!schoolYear || !gradeKey || !sectionKey || !teacherKey) throw new Error("Invalid section ID.");
-  await db.collection(FS_SECTIONS).doc(schoolYear).collection("grades").doc(gradeKey).collection("sections").doc(sectionKey).collection("teachers").doc(teacherKey).delete();
+  const sectionRef = db.collection(FS_SECTIONS).doc(schoolYear).collection("grades").doc(gradeKey).collection("sections").doc(sectionKey);
+  await fsDeleteAdvisoryTeacher_(schoolYear, gradeKey, sectionKey, teacherKey);
+  await sectionRef.collection("teachers").doc(teacherKey).delete();
+  await sectionRef.delete();
+  await db.collection(FS_SECTIONS).doc(schoolYear).collection("directory").doc(`${gradeKey}-${sectionKey}-${teacherKey}`).delete();
   fsInvalidateReadCaches_();
   return { deleted: true };
 }
@@ -1028,7 +1199,10 @@ export function fsLearnerArchiveType_(learner) {
 
 export async function fsGetAllLearners_(schoolYear) {
   const snapshot = await fsLearnersCollection_(schoolYear).get();
-  return snapshot.docs.map((doc) => ({ learnerId: doc.id, ...doc.data() }));
+  return snapshot.docs.map((doc) => {
+    const data = doc.data();
+    return { ...data, learnerId: doc.id, dateAdded: data.dateAdded || data.createdAt || data.addedAt || "" };
+  });
 }
 
 export function fsLearnerDate_(value) {
@@ -1045,13 +1219,13 @@ export async function fsGetLearner(learnerId, schoolYear) {
     ? fsAdvisoryLearnersCollection_(assignment)
     : fsLearnersCollection_(schoolYear);
   const doc = await collection.doc(learnerId).get();
-  return doc.exists ? { learnerId: doc.id, ...doc.data(), dateAdded: fsLearnerDate_(doc.data().dateAdded) } : null;
+  return doc.exists ? { ...doc.data(), learnerId: doc.id, dateAdded: fsLearnerDate_(doc.data().dateAdded || doc.data().createdAt || doc.data().addedAt) } : null;
 }
 
 export async function fsGetLearnerPage(options = {}) {
   const allLearners = (await fsGetLearners(options.schoolYear)).map((learner) => ({
     ...learner,
-    dateAdded: fsLearnerDate_(learner.dateAdded),
+    dateAdded: fsLearnerDate_(learner.dateAdded || learner.createdAt || learner.addedAt),
   }));
   const query = String(options.search || "").toLowerCase();
   const filtered = allLearners.filter((learner) => {
@@ -1085,7 +1259,7 @@ export async function fsGetLearnerSchema(schoolYear) {
  *  share ONE Firestore listener per school year and update instantly when any
  *  device adds/edits/removes a learner, with no manual refresh. */
 export function fsSubscribeLearners(schoolYear, onChange, onError) {
-  return fsSubscribeLiveLearners_(schoolYear, onChange, onError);
+  return isTeacher() ? fsSubscribeTeacherLearners_(schoolYear, onChange, onError) : fsSubscribeLiveLearners_(schoolYear, onChange, onError);
 }
 
 function fsRecentLearnerSortValue_(value) {
@@ -1099,16 +1273,17 @@ export function fsSubscribeRecentLearners(schoolYear, onChange, onError) {
   // dashboard no longer needs a second Firestore query for the "recent" list.
   return fsSubscribeLiveLearners_(schoolYear, (learners) => {
     const recent = (learners || []).slice()
-      .sort((a, b) => fsRecentLearnerSortValue_(b.dateAdded) - fsRecentLearnerSortValue_(a.dateAdded))
+      .sort((a, b) => (fsRecentLearnerSortValue_(b.dateAdded || b.createdAt || b.addedAt) - fsRecentLearnerSortValue_(a.dateAdded || a.createdAt || a.addedAt))
+        || String(b.learnerId || "").localeCompare(String(a.learnerId || "")))
       .slice(0, 5)
-      .map((learner) => ({ ...learner, dateAdded: fsLearnerDate_(learner.dateAdded) }));
+      .map((learner) => ({ ...learner, dateAdded: fsLearnerDate_(learner.dateAdded || learner.createdAt || learner.addedAt) }));
     if (typeof onChange === "function") onChange(recent);
   }, onError);
 }
 
 export async function fsAdvisoryTargets_(schoolYear, learner) {
-  const gradeLevel = fsNormalizeGrade_(learner.gradeLevel);
-  const section = String(learner.section || "").trim();
+  const gradeLevel = fsNormalizeGrade_(learner?.gradeLevel);
+  const section = String(learner?.section || "").trim();
   if (!gradeLevel || !section) return [];
   const [sections, users] = await Promise.all([fsGetSections(schoolYear), fsGetUsers()]);
   const targets = new Map();
@@ -1153,10 +1328,11 @@ export async function fsSyncAdvisoryLearner_(batch, schoolYear, learner, previou
 export async function fsAddLearner(schoolYear, learner) {
   try {
     const learnerId = String(learner.learnerId || "").trim();
+    if (!/^\d{12}$/.test(learnerId)) throw new Error("A valid 12-digit LRN is required.");
     const archiveType = fsLearnerArchiveType_(learner);
     const collection = archiveType ? fsArchiveCollection_(archiveType, schoolYear) : fsLearnersCollection_(schoolYear);
-    const ref = learnerId ? collection.doc(learnerId) : collection.doc();
-    const canonical = { ...fsCanonicalLearner_(learner), schoolYear, dateAdded: firebase.firestore.FieldValue.serverTimestamp() };
+    const ref = collection.doc(learnerId);
+    const canonical = { ...fsCanonicalLearner_(learner), learnerId, schoolYear, dateAdded: firebase.firestore.FieldValue.serverTimestamp() };
     if (archiveType) await ref.set(canonical);
     else {
       const batch = db.batch();

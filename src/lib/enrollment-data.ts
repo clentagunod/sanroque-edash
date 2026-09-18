@@ -2,7 +2,7 @@
 import { escapeHtml, renderShell, showToast } from './shell';
 import { LPSApi } from './sheets-api';
 import { requireAuth } from './auth';
-import { canManageLearners, isVisitorSession } from './app-config';
+import { canManageLearners, isTeacher, isVisitorSession, storedAppProfile } from './app-config';
 import { getSelectedSchoolYear, initYearSwitcher, setSelectedSchoolYear } from './school-year';
 import { fsSubscribeLearners, fsSubscribePublicStats, fsSyncEnrollmentData } from './firestore-api';
 
@@ -133,11 +133,19 @@ export async function syncEnrollmentCounts(showFeedback, schoolYear = getSelecte
 
 export function renderEnrollmentData(result) {
   const body = document.getElementById("enrollmentTableBody");
-  const rows = Array.isArray(result.rows) ? result.rows : [];
+  const assignment = isTeacher() ? (storedAppProfile()?.teacherAssignment || {}) : null;
+  const rows = (Array.isArray(result.rows) ? result.rows : []).filter((row) => !assignment
+    || String(row.gradeLevel || "").trim().toLowerCase() === String(assignment.gradeLevel || "").trim().toLowerCase()
+    && String(row.section || "").trim().toLowerCase() === String(assignment.section || "").trim().toLowerCase());
   const totalsByGrade = new Map((result.gradeTotals || []).map((row) => [enrollmentGradeLabel(row.gradeLevel), row]));
   const html = [];
+  const gradeOrder = [...new Set(rows.map((row) => enrollmentGradeLabel(row.gradeLevel)))].sort((a, b) => {
+    const first = ENROLLMENT_GRADE_ORDER.indexOf(a);
+    const second = ENROLLMENT_GRADE_ORDER.indexOf(b);
+    return (first < 0 ? Number.MAX_SAFE_INTEGER : first) - (second < 0 ? Number.MAX_SAFE_INTEGER : second) || a.localeCompare(b);
+  });
 
-  ENROLLMENT_GRADE_ORDER.forEach((gradeLevel) => {
+  gradeOrder.forEach((gradeLevel) => {
     const gradeRows = rows.filter((row) => enrollmentGradeLabel(row.gradeLevel) === gradeLevel);
     if (!gradeRows.length) return;
     gradeRows.forEach((row) => html.push(`
@@ -149,7 +157,11 @@ export function renderEnrollmentData(result) {
         <td class="number-cell">${Number(row.female || 0).toLocaleString()}</td>
         <td class="number-cell total-cell">${Number(row.total || 0).toLocaleString()}</td>
       </tr>`));
-    const subtotal = totalsByGrade.get(gradeLevel);
+    const subtotal = assignment ? {
+      male: gradeRows.reduce((sum, row) => sum + Number(row.male || 0), 0),
+      female: gradeRows.reduce((sum, row) => sum + Number(row.female || 0), 0),
+      total: gradeRows.reduce((sum, row) => sum + Number(row.total || 0), 0),
+    } : totalsByGrade.get(gradeLevel);
     if (subtotal) html.push(`
       <tr class="subtotal-row">
         <td colspan="3">${escapeHtml(gradeLevel)} total</td>
@@ -159,17 +171,18 @@ export function renderEnrollmentData(result) {
       </tr>`);
   });
 
-  if (html.length && result.grandTotal) html.push(`
+  const grandTotal = assignment ? rows.reduce((total, row) => ({ male: total.male + Number(row.male || 0), female: total.female + Number(row.female || 0), total: total.total + Number(row.total || 0) }), { male: 0, female: 0, total: 0 }) : result.grandTotal;
+  if (html.length && grandTotal) html.push(`
     <tr class="grand-total-row">
       <td colspan="3">Grand total</td>
-      <td class="number-cell">${Number(result.grandTotal.male || 0).toLocaleString()}</td>
-      <td class="number-cell">${Number(result.grandTotal.female || 0).toLocaleString()}</td>
-      <td class="number-cell">${Number(result.grandTotal.total || 0).toLocaleString()}</td>
+      <td class="number-cell">${Number(grandTotal.male || 0).toLocaleString()}</td>
+      <td class="number-cell">${Number(grandTotal.female || 0).toLocaleString()}</td>
+      <td class="number-cell">${Number(grandTotal.total || 0).toLocaleString()}</td>
     </tr>`);
 
   body.innerHTML = html.join("") || `<tr><td colspan="6" class="state-row">No enrollment sections found for this school year.</td></tr>`;
   document.getElementById("enrollmentTitle").textContent = result.schoolYear || "School year";
-  document.getElementById("enrollmentTotalMale").textContent = Number(result.grandTotal?.male || 0).toLocaleString();
-  document.getElementById("enrollmentTotalFemale").textContent = Number(result.grandTotal?.female || 0).toLocaleString();
-  document.getElementById("enrollmentGrandTotal").textContent = Number(result.grandTotal?.total || 0).toLocaleString();
+  document.getElementById("enrollmentTotalMale").textContent = Number(grandTotal?.male || 0).toLocaleString();
+  document.getElementById("enrollmentTotalFemale").textContent = Number(grandTotal?.female || 0).toLocaleString();
+  document.getElementById("enrollmentGrandTotal").textContent = Number(grandTotal?.total || 0).toLocaleString();
 }

@@ -3,7 +3,7 @@ import { LPSApi } from './sheets-api';
 import { escapeHtml, formatAppDate, renderShell, todayFormatted } from './shell';
 import { requireAuth } from './auth';
 import { DEMO_SUMMARY, isSheetsApiConfigured } from './demo-data';
-import { isTeacher, isVisitorSession } from './app-config';
+import { isTeacher, isVisitorSession, storedAppProfile } from './app-config';
 import { Icon } from './icons';
 import { fsGetLearners, fsGetPublicStats, fsNormalizeSchoolYear_, fsRefreshPublicStats, fsSubscribeLearners, fsSubscribePublicStats, fsSubscribeRecentLearners } from './firestore-api';
 import { initYearSwitcher } from './school-year';
@@ -20,6 +20,7 @@ export function getDashboardPublicStats() {
 
 export async function initDashboard() {
   renderShell("dashboard");
+  renderDashboardContext();
     const dateElement = document.getElementById("todayDate");
     if (dateElement) dateElement.textContent = "Today is " + todayFormatted();
   if (isVisitorSession()) {
@@ -56,6 +57,21 @@ export async function initDashboard() {
     selectedSchoolYearForWatchdog = year;
     return loadDashboardData(year);
   });
+}
+
+export function renderDashboardContext() {
+  const profile = storedAppProfile() || {};
+  const welcome = document.getElementById("dashboardWelcome");
+  const scope = document.getElementById("dashboardScope");
+  if (!welcome || !scope) return;
+  const displayName = String(profile.name || profile.email || "there").trim();
+  welcome.textContent = `Welcome, ${displayName}`;
+  if (isTeacher()) {
+    const assignment = profile.teacherAssignment || {};
+    scope.innerHTML = `<strong>Your teaching scope</strong><span>${escapeHtml(assignment.schoolYear || "Current school year")} · ${escapeHtml(assignment.gradeLevel || "Grade not assigned")} · ${escapeHtml(assignment.section || "Section not assigned")}</span><small>Dashboard totals, learner lists, and enrollment counts are limited to this assignment.</small>`;
+  } else {
+    scope.innerHTML = `<strong>School-wide registrar view</strong><span>All grades, sections, and active learners</span><small>Manage the complete masterlist and registrar data from the navigation.</small>`;
+  }
 }
 
 export function renderDashboardSummary(summary, recentLearners = []) {
@@ -265,9 +281,9 @@ export function summarizeFirestoreLearners(learners) {
   });
   const recentLearners = items
     .slice()
-    .sort((a, b) => learnerDateValue(b.dateAdded) - learnerDateValue(a.dateAdded))
+    .sort((a, b) => (learnerDateValue(b.dateAdded || b.createdAt || b.addedAt) - learnerDateValue(a.dateAdded || a.createdAt || a.addedAt)) || String(b.learnerId || "").localeCompare(String(a.learnerId || "")))
     .slice(0, 5)
-    .map((learner) => ({ ...learner, dateAdded: formatLearnerDate(learner.dateAdded) }));
+    .map((learner) => ({ ...learner, dateAdded: formatLearnerDate(learner.dateAdded || learner.createdAt || learner.addedAt) }));
   const taggedCount = items.filter((learner) => learner.is4Ps || learner.isIP || learner.isSNED || learner.isARAL || learner.isMuslim).length;
 
   return {
@@ -293,7 +309,7 @@ export function learnerDateValue(value) {
 }
 
 export function formatLearnerDate(value) {
-  return formatAppDate(value);
+  return formatAppDate(value, "Not recorded");
 }
 
 export function visitorFallbackSummary() {
@@ -419,7 +435,7 @@ export function renderRecentTable(learners) {
   }) : [];
 
   const rows = safeLearners.map((l) => {
-    const dateValue = formatAppDate(l.dateAdded, "—");
+    const dateValue = formatAppDate(l.dateAdded, "Not recorded");
     return `
     <tr>
       <td class="cell-name">${escapeHtml(l.lastName || l.name || "Unknown")}, ${escapeHtml(l.firstName || "")}</td>

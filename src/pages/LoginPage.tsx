@@ -4,6 +4,7 @@ import html from './markup/login.html?raw';
 import { forceLoginPageLightTheme, initLoginPage } from '../lib/auth';
 import { auth } from '../lib/firebase';
 import { clearVisitorSession, ensureVisitorSession } from '../lib/app-config';
+import TestModeStamp from '../components/TestModeStamp';
 
 export default function LoginPage() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -77,5 +78,10 @@ export default function LoginPage() {
     };
   }, []);
 
-  return <div ref={containerRef} dangerouslySetInnerHTML={{ __html: html }} />;
+  return (
+    <>
+      <div ref={containerRef} dangerouslySetInnerHTML={{ __html: html }} />
+      <TestModeStamp />
+    </>
+  );
 }

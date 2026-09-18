@@ -1,5 +1,5 @@
 // @ts-nocheck -- ported from the original site; behavior preserved, not yet fully typed.
-import { appDateInputValue, showToast } from './shell';
+import { appDateInputValue, clearButtonLoading, setButtonLoading, showToast } from './shell';
 import { LPSApi } from './sheets-api';
 
 export let archiveEditorState = null;
@@ -57,6 +57,9 @@ export function openArchiveEditor(archive, schoolYear, record, reload) {
 
 export async function deleteArchiveRecord(archive, schoolYear, record, reload) {
   if (!window.confirm(`Delete ${record.firstName || "this"} ${record.lastName || "learner"} from the archive?`)) return;
+  const button = document.querySelector(`[data-archive-delete="${CSS.escape(String(record.learnerId))}"], [data-transfer-delete="${CSS.escape(String(record.learnerId))}"]`);
+  setButtonLoading(button, "Deleting…");
   try { await LPSApi.deleteArchiveRecord(archive, schoolYear, record.learnerId); await reload(); showToast("Archived learner deleted.", "success"); }
   catch (error) { showToast(error.message || "The archived learner could not be deleted.", "error"); }
+  finally { clearButtonLoading(button); }
 }

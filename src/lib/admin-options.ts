@@ -37,13 +37,13 @@ export async function initAdminOptions() {
 export async function loadAdminStructure() {
   const state = document.getElementById("adminSectionsState");
   try {
-    await LPSApi.refreshPublicStats?.();
     ADMIN_OPTIONS.years = await LPSApi.getSchoolYears();
     ADMIN_OPTIONS.years = (ADMIN_OPTIONS.years || []).filter((year) => /^\d{4}-\d{4}$/.test(String(year.schoolYear || "")));
     const current = ADMIN_OPTIONS.years.find((year) => year.isCurrent) || ADMIN_OPTIONS.years[0];
     ADMIN_OPTIONS.selectedYear = current?.schoolYear || "";
     renderAdminYearSelect();
     await loadAdminSections(ADMIN_OPTIONS.selectedYear);
+    void Promise.resolve(LPSApi.refreshPublicStats?.()).catch(() => {});
   } catch (error) {
     if (state) state.innerHTML = `<span class="state-row error">Unable to load school structure: ${adminOptionEscape(error.message)}</span>`;
   }
@@ -164,7 +164,7 @@ export async function saveAdminSection(event) {
   setButtonLoading(button, "Saving section…");
   try {
     await LPSApi.saveSection({ id: ADMIN_OPTIONS.editingSection?.id, schoolYear: ADMIN_OPTIONS.selectedYear, gradeLevel: document.getElementById("adminSectionGrade").value, section: document.getElementById("adminSectionName").value.trim(), adviser: document.getElementById("adminSectionTeacher").value.trim() });
-    await LPSApi.refreshPublicStats?.();
+    void Promise.resolve(LPSApi.refreshPublicStats?.()).catch(() => {});
     showToast("Section saved.", "success");
     closeAdminModal("adminSectionModalBackdrop");
     await loadAdminSections(ADMIN_OPTIONS.selectedYear);
@@ -175,8 +175,8 @@ export async function saveAdminSection(event) {
 export async function deleteAdminSection(sectionId, button) {
   const section = ADMIN_OPTIONS.sections.find((item) => item.id === sectionId);
   if (!section || !window.confirm(`Remove ${section.gradeLevel} · ${section.section}?`)) return;
-  setButtonLoading(button, "");
-  try { await LPSApi.deleteSection(sectionId); await LPSApi.refreshPublicStats?.(); showToast("Section removed.", "success"); await loadAdminSections(ADMIN_OPTIONS.selectedYear); }
+  setButtonLoading(button, "Removing…");
+  try { await LPSApi.deleteSection(sectionId); void Promise.resolve(LPSApi.refreshPublicStats?.()).catch(() => {}); showToast("Section removed.", "success"); await loadAdminSections(ADMIN_OPTIONS.selectedYear); }
   catch (error) { showToast(error.message || "Section could not be removed.", "error"); }
   finally { clearButtonLoading(button); }
 }

@@ -2,6 +2,7 @@
 import { LPSApi } from './sheets-api';
 import { requireAuth } from './auth';
 import { getSelectedSchoolYear, initYearSwitcher } from './school-year';
+import { isTeacher } from './app-config';
 import { escapeHtml, formatAppDate, renderShell, showToast } from './shell';
 
 export const DATA_PAGE_SIZE = 100;
@@ -28,6 +29,10 @@ export const DATA_FIELDS = [
 
 export function initDataPage() {
   renderShell("data", "Data");
+  if (isTeacher()) {
+    document.getElementById("downloadAllBtn")?.setAttribute("title", "Download all learners in the current school year");
+    document.getElementById("downloadFilteredBtn")?.setAttribute("title", "Download filtered learners in the current school year");
+  }
   ["dataSearch", "dataGrade", "dataProgram", "dataGender"].forEach((id) => {
     const element = document.getElementById(id);
     element.addEventListener("input", debounceDataLoad);

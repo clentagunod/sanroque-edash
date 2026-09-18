@@ -10,6 +10,7 @@ import { fsGetUsers, fsSubscribeUsers } from './firestore-api';
 export let MU = { users: [], editingId: null, deletingId: null, deletingName: "", selectedIds: new Set() };
 export let usersLoadRequest = 0;
 export let userFormInitialSnapshot = "";
+let teacherAssignmentLoadToken = 0;
 /** Live subscription that keeps the user directory current without a manual refresh. */
 export let usersLiveUnsubscribe = null;
 
@@ -214,12 +215,22 @@ function advisoryKey(value) {
   return teacherKey(value);
 }
 
+function normalizeTeacherGrade(value) {
+  const text = String(value || "").trim();
+  const normalized = text.toLowerCase().replace(/\s+/g, " ");
+  if (["kinder", "kindergarten", "kg", "0"].includes(normalized)) return "Kinder";
+  const match = normalized.match(/^grade\s*(\d+)$/) || normalized.match(/^(\d+)$/);
+  return match ? `Grade ${match[1]}` : text;
+}
+
 export async function loadTeacherAssignmentSections(selectedSection = "") {
   const year = document.getElementById("u_teacher_year")?.value;
   const sectionSelect = document.getElementById("u_teacher_section");
   if (!sectionSelect || !year) return;
+  const requestToken = ++teacherAssignmentLoadToken;
   try {
     const sections = await LPSApi.getSections(year);
+    if (requestToken !== teacherAssignmentLoadToken || year !== document.getElementById("u_teacher_year")?.value) return;
     sectionSelect.innerHTML = sections.length
       ? sections.map((section) => {
         const value = encodeURIComponent(JSON.stringify({ gradeLevel: section.gradeLevel, section: section.section }));
@@ -242,6 +253,7 @@ export async function toggleTeacherAssignmentFields(selected = {}) {
   wrapper.hidden = !required;
   sectionSelect.required = required;
   if (!required) return;
+  teacherAssignmentLoadToken += 1;
   const years = await LPSApi.getSchoolYears();
   yearSelect.innerHTML = years.map((year) => `<option value="${escapeHtml(year.schoolYear)}">${escapeHtml(year.schoolYear)}</option>`).join("");
   yearSelect.value = selected.schoolYear || years.find((year) => year.isCurrent)?.schoolYear || years[0]?.schoolYear || "";
@@ -272,7 +284,9 @@ export async function handleUserFormSubmit(e) {
       let selected;
       try { selected = JSON.parse(decodeURIComponent(document.getElementById("u_teacher_section").value || "")); }
       catch (error) { throw new Error("Select a valid teacher grade and section."); }
-      record.teacherAssignment = { schoolYear: document.getElementById("u_teacher_year").value, ...selected, teacherName: record.name, teacherKey: teacherKey(record.name), gradeKey: advisoryKey(selected.gradeLevel), sectionKey: advisoryKey(selected.section) };
+      const gradeLevel = normalizeTeacherGrade(selected.gradeLevel);
+      const section = String(selected.section || "").trim();
+      record.teacherAssignment = { schoolYear: document.getElementById("u_teacher_year").value.trim(), gradeLevel, section, teacherName: record.name, teacherKey: teacherKey(record.name), gradeKey: advisoryKey(gradeLevel), sectionKey: advisoryKey(section) };
       if (!record.teacherAssignment.schoolYear || !record.teacherAssignment.gradeLevel || !record.teacherAssignment.section) throw new Error("Teacher grade, section, and school year are required.");
     } else record.teacherAssignment = null;
     if (MU.editingId) {

@@ -1,6 +1,6 @@
 // @ts-nocheck -- ported from the original site; behavior preserved, not yet fully typed.
 import { LPSApi } from './sheets-api';
-import { isVisitorSession } from './app-config';
+import { isTeacher, isVisitorSession } from './app-config';
 import { fsNormalizeSchoolYear_, fsSubscribeSchoolYears } from './firestore-api';
 import { escapeHtml } from './shell';
 
@@ -81,6 +81,8 @@ export async function initYearSwitcher(onChange) {
     return;
   }
 
+  const teacherView = isTeacher();
+
   try {
     if (typeof LPSApi === "undefined" || typeof LPSApi.getSchoolYears !== "function") {
       if (typeof onChange === "function") await onChange("");
@@ -109,11 +111,18 @@ export async function initYearSwitcher(onChange) {
     ...year,
     schoolYear: typeof fsNormalizeSchoolYear_ === "function" ? fsNormalizeSchoolYear_(year.schoolYear) : String(year.schoolYear || "").trim(),
   })).filter((year, index, years) => year.schoolYear && years.findIndex((item) => item.schoolYear === year.schoolYear) === index);
+  const current = availableSchoolYears.find((year) => year.isCurrent) || availableSchoolYears[0];
+  if (teacherView) {
+    selectedSchoolYear = current?.schoolYear || "";
+    writeStoredSchoolYear_(selectedSchoolYear);
+    mount.innerHTML = `<div class="year-switcher year-switcher-readonly"><div class="year-switcher-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M16 3v3M8 3v3M3 9.5h18"/></svg></div><div class="year-switcher-copy"><span>Academic period</span><label>Current school year</label></div><strong class="year-readonly-value">${escapeHtml(selectedSchoolYear || "Unavailable")}</strong><span class="year-current-badge">Current</span></div>`;
+    if (typeof onChange === "function") await onChange(selectedSchoolYear);
+    return;
+  }
   const stored = readStoredSchoolYear_();
   const storedMatch = stored && availableSchoolYears.find((year) => year.schoolYear === stored);
-  const fallback = availableSchoolYears.find((year) => year.isCurrent) || availableSchoolYears[0];
-  const current = storedMatch || fallback;
-  selectedSchoolYear = current.schoolYear || "";
+  const selected = storedMatch || current;
+  selectedSchoolYear = selected.schoolYear || "";
   writeStoredSchoolYear_(selectedSchoolYear);
   mount.innerHTML = `
     <div class="year-switcher">

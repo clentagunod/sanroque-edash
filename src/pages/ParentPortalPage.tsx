@@ -3,6 +3,7 @@ import { auth, getPublicStats } from '../lib/firebase';
 import { fsGetLearner } from '../lib/firestore-api';
 import { Icon } from '../lib/icons';
 import '../styles/pages/parent-portal.css';
+import TestModeStamp from '../components/TestModeStamp';
 
 type Learner = Record<string, any>;
 
@@ -15,6 +16,10 @@ const LABELS: Record<string, string> = {
   mosyNutritionalStatus: 'MOSY nutritional status', eosyHeight: 'EOSY height', eosyWeight: 'EOSY weight',
   eosyNutritionalStatus: 'EOSY nutritional status', transferType: 'Transfer type', transferSchool: 'Transfer school',
   transferDate: 'Transfer date', transferReason: 'Transfer reason', transferNotes: 'Transfer notes',
+  filipino: 'Filipino', english: 'English', math: 'Mathematics', science: 'Science', aralPan: 'Araling Panlipunan',
+  esp: 'ESP', music: 'Music', arts: 'Arts', pe: 'Physical Education', health: 'Health', epp: 'EPP', motherTongue: 'Mother Tongue',
+  bosyCRLA: 'BOSY CRLA', mosyCRLA: 'MOSY CRLA', eosyCRLA: 'EOSY CRLA', bosyPhilIRI: 'BOSY Phil-IRI', mosyPhilIRI: 'MOSY Phil-IRI', eosyPhilIRI: 'EOSY Phil-IRI',
+  bosyRMA: 'BOSY RMA', mosyRMA: 'MOSY RMA', eosyRMA: 'EOSY RMA',
 };
 
 const PROFILE_FIELDS = ['firstName', 'middleName', 'lastName', 'birthDate', 'age', 'gradeLevel', 'section', 'gender'];
@@ -25,6 +30,8 @@ const NUTRITION_FIELDS = [
   'eosyHeight', 'eosyWeight', 'eosyNutritionalStatus',
 ];
 const TRANSFER_FIELDS = ['transferType', 'transferSchool', 'transferDate', 'transferReason', 'transferNotes'];
+const GRADE_FIELDS = ['filipino', 'english', 'math', 'science', 'aralPan', 'esp', 'music', 'arts', 'pe', 'health', 'epp', 'motherTongue'];
+const ASSESSMENT_FIELDS = ['bosyCRLA', 'mosyCRLA', 'eosyCRLA', 'bosyPhilIRI', 'mosyPhilIRI', 'eosyPhilIRI', 'bosyRMA', 'mosyRMA', 'eosyRMA'];
 const PROGRAM_FIELDS = [
   ['is4Ps', '4Ps beneficiary'], ['isIP', 'IP learner'], ['isSNED', 'SNED learner'],
   ['isARAL', 'ARAL tagged'], ['isMuslim', 'Muslim learner'],
@@ -33,18 +40,23 @@ const PROGRAM_FIELDS = [
 function formatValue(key: string, value: any) {
   if (value && typeof value.toDate === 'function') return value.toDate().toLocaleDateString();
   if (key === 'dateAdded' && value) return new Date(value).toLocaleDateString();
+  if (key.endsWith('Height') && value !== '') {
+    const centimeters = Number(value);
+    return Number.isFinite(centimeters) ? `${(centimeters / 100).toFixed(2)} m (${centimeters.toFixed(1)} cm)` : String(value);
+  }
+  if (key.endsWith('Weight') && value !== '') return `${Number(value).toFixed(1)} kg`;
   if (key === 'enrollmentStatus') return String(value).replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
   return String(value);
 }
 
-function DetailSection({ title, fields, learner }: { title: string; fields: string[]; learner: Learner }) {
+function DetailSection({ title, fields, learner, hidden = false }: { title: string; fields: string[]; learner: Learner; hidden?: boolean }) {
   const visibleFields = fields.filter((field) => learner[field] !== undefined && learner[field] !== null && learner[field] !== '');
   if (!visibleFields.length) return null;
   return (
     <section className="parent-detail-section">
       <h2>{title}</h2>
       <dl className="parent-detail-grid">
-        {visibleFields.map((field) => <div key={field}><dt>{LABELS[field] || field}</dt><dd>{formatValue(field, learner[field])}</dd></div>)}
+        {visibleFields.map((field) => <div key={field}><dt>{LABELS[field] || field}</dt><dd className={hidden ? 'parent-sensitive-value' : ''}>{hidden ? 'Hidden' : formatValue(field, learner[field])}</dd></div>)}
       </dl>
     </section>
   );
@@ -56,6 +68,7 @@ export default function ParentPortalPage() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [schoolYear, setSchoolYear] = useState('');
+  const [showGrades, setShowGrades] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     try {
       return window.localStorage.getItem('parent-portal-theme') === 'dark';
@@ -87,6 +100,7 @@ export default function ParentPortalPage() {
     event.preventDefault();
     const normalizedId = learnerId.trim();
     setLearner(null);
+    setShowGrades(false);
     setMessage('');
     if (!normalizedId) {
       setMessage('Enter the learner reference number to continue.');
@@ -114,7 +128,8 @@ export default function ParentPortalPage() {
   }
 
   return (
-    <main className={`parent-portal-shell${isDarkMode ? ' parent-portal-dark' : ''}`}>
+    <>
+      <main className={`parent-portal-shell${isDarkMode ? ' parent-portal-dark' : ''}`}>
       <header className="parent-portal-header">
         <a className="parent-portal-brand" href="index.html" aria-label="Back to login">
           <span className="parent-portal-brand-mark">
@@ -169,12 +184,19 @@ export default function ParentPortalPage() {
             <DetailSection title="Parent or guardian" fields={FAMILY_FIELDS} learner={learner} />
             <DetailSection title="School record" fields={SCHOOL_FIELDS} learner={learner} />
             <DetailSection title="Nutrition record" fields={NUTRITION_FIELDS} learner={learner} />
+            <section className="parent-detail-section">
+              <div className="parent-detail-section-heading"><h2>Grades and assessments</h2><button className="parent-visibility-toggle" type="button" onClick={() => setShowGrades((value) => !value)} aria-pressed={showGrades} aria-label={showGrades ? 'Hide grades' : 'Show grades'} title={showGrades ? 'Hide grades' : 'Show grades'}><span aria-hidden="true">{showGrades ? '◉' : '◌'}</span> {showGrades ? 'Hide grades' : 'Show grades'}</button></div>
+              <DetailSection title="" fields={GRADE_FIELDS} learner={learner} hidden={!showGrades} />
+              <DetailSection title="" fields={ASSESSMENT_FIELDS} learner={learner} hidden={!showGrades} />
+            </section>
             <DetailSection title="Transfer information" fields={TRANSFER_FIELDS} learner={learner} />
             {learner.extra && Object.keys(learner.extra).length > 0 && <DetailSection title="Additional information" fields={Object.keys(learner.extra)} learner={learner.extra} />}
           </section>
         )}
       </div>
       <footer className="parent-portal-footer">© 2026 San Roque Elementary School · Courtesy of <a href="https://github.com/clentagunod" target="_blank" rel="noopener noreferrer">ClentIndustries</a></footer>
-    </main>
+      </main>
+      <TestModeStamp />
+    </>
   );
 }

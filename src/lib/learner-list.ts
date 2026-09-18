@@ -3,6 +3,7 @@ import { LPSApi } from './sheets-api';
 import { getSelectedSchoolYear, initYearSwitcher } from './school-year';
 import { Icon } from './icons';
 import { canManageLearners, confirmDiscardChanges, formSnapshot, isVisitorSession, paginationPageNumbers } from './app-config';
+import { canManageLearners, confirmDiscardChanges, formSnapshot, isTeacher, isVisitorSession, paginationPageNumbers, storedAppProfile } from './app-config';
 import { escapeHtml, formatAppDate, programBadges, renderShell, showToast } from './shell';
 import { DEMO_LEARNERS, isSheetsApiConfigured } from './demo-data';
 import { fsAddLearner, fsDeleteLearner, fsDeleteLearners, fsGetLearner, fsGetLearnerPage, fsSubscribeLearners } from './firestore-api';
@@ -43,6 +44,37 @@ export let learnerModalBusy = false;
 export let learnerMutationBusy = false;
 export let learnerFormInitialSnapshot = "";
 export let learnerListUnsubscribe = null;
+
+export function teacherLearnerScope() {
+  const assignment = storedAppProfile()?.teacherAssignment || {};
+  return isTeacher() && assignment.gradeLevel && assignment.section
+    ? { gradeLevel: assignment.gradeLevel, section: assignment.section }
+    : null;
+}
+
+export function applyTeacherLearnerScope() {
+  const scope = teacherLearnerScope();
+  const gradeFilter = document.getElementById("gradeFilter");
+  const formGrade = document.getElementById("f_gradeLevel");
+  const formSection = document.getElementById("f_section");
+  if (!scope) return null;
+  if (gradeFilter) {
+    gradeFilter.value = "";
+    gradeFilter.hidden = true;
+    gradeFilter.disabled = true;
+  }
+  if (formGrade) {
+    formGrade.value = scope.gradeLevel;
+    formGrade.disabled = true;
+    formGrade.closest(".field")?.setAttribute("hidden", "true");
+  }
+  if (formSection) {
+    formSection.value = scope.section;
+    formSection.disabled = true;
+    formSection.closest(".field")?.setAttribute("hidden", "true");
+  }
+  return scope;
+}
 
 /**
  * Subscribes this page to live learner updates for the selected school year.
@@ -138,6 +170,7 @@ export function collectExtraFieldValues() {
 export function initLearnerListPage({ program, activeNavKey, title }) {
   LL.program = program || "";
   renderShell(activeNavKey, title);
+  applyTeacherLearnerScope();
   const addLearnerButton = document.getElementById("addLearnerBtn");
   if (addLearnerButton && !canManageLearners()) addLearnerButton.remove();
   if (canManageLearners()) ensureLearnerBulkControls();
@@ -371,6 +404,27 @@ export function renderPagination(total, page, pageSize) {
 }
 
 /* ---- Add / edit modal ---------------------------------------------------- */
+export function wireLearnerArrowNavigation(form) {
+  if (!form || form.dataset.arrowNavigationWired === "true") return;
+  form.dataset.arrowNavigationWired = "true";
+  form.addEventListener("keydown", (event) => {
+    if (!(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key))) return;
+    const target = event.target;
+    if (!target || !["INPUT", "SELECT", "TEXTAREA"].includes(target.tagName)) return;
+    if (target.tagName === "TEXTAREA" && (event.key === "ArrowUp" || event.key === "ArrowDown")) return;
+    const controls = [...form.querySelectorAll("input:not([type=hidden]):not([disabled]), select:not([disabled]), textarea:not([disabled])")]
+      .filter((control) => control.offsetParent !== null);
+    const index = controls.indexOf(target);
+    if (index < 0) return;
+    const columns = Math.max(1, Math.round(Math.sqrt(controls.length)));
+    const offset = event.key === "ArrowLeft" ? -1 : event.key === "ArrowRight" ? 1 : event.key === "ArrowUp" ? -columns : columns;
+    const next = controls[index + offset];
+    if (!next) return;
+    event.preventDefault();
+    next.focus();
+    if (typeof next.select === "function" && next.tagName === "INPUT") next.select();
+  });
+}
 
 export function wireModal() {
   const backdrop = document.getElementById("learnerModalBackdrop");
@@ -398,6 +452,12 @@ export function wireModal() {
   ensureLearnerStatusInputs();
   ensureSectionInput();
   normalizeHeightInputs();
+  const learnerIdInput = document.getElementById("f_learnerId");
+  if (learnerIdInput) {
+    learnerIdInput.required = true;
+    learnerIdInput.setAttribute("aria-required", "true");
+    learnerIdInput.placeholder = "123456789012";
+  }
   const genderInput = document.getElementById("f_gender");
   if (genderInput) {
     genderInput.required = true;
@@ -418,6 +478,7 @@ export function wireModal() {
   const transferTypeInput = document.getElementById("f_transferType");
   if (transferTypeInput) transferTypeInput.addEventListener("change", updateTransferVisibility);
   document.getElementById("f_birthDate")?.addEventListener("input", updateLearnerAge);
+  wireLearnerArrowNavigation(form);
 
   // Delete modal
   const delBackdrop = document.getElementById("deleteModalBackdrop");
@@ -432,13 +493,14 @@ export async function openAddModal() {
   LL.editingId = null;
   document.getElementById("learnerModalTitle").textContent = "Add Learner";
   document.getElementById("learnerForm").reset();
+    applyTeacherLearnerScope();
   const learnerIdInput = document.getElementById("f_learnerId");
   learnerIdInput.readOnly = false;
   learnerIdInput.value = "";
   learnerIdInput.maxLength = 12;
   learnerIdInput.pattern = "[0-9]{12}";
   learnerIdInput.inputMode = "numeric";
-  learnerIdInput.placeholder = "123456789012 (auto-generated if blank)";
+  learnerIdInput.placeholder = "123456789012";
   if (PROGRAM_FIELD_MAP[LL.program]) {
     document.getElementById("f_" + PROGRAM_FIELD_MAP[LL.program]).checked = true;
   }
@@ -464,6 +526,7 @@ export async function openEditModal(learnerId) {
   learnerModalBusy = true;
   const backdrop = document.getElementById("learnerModalBackdrop");
   LL.sectionSchoolYear = getSelectedSchoolYear();
+  applyTeacherLearnerScope();
   document.getElementById("learnerModalTitle").textContent = "Loading Learner…";
   document.getElementById("learnerForm").reset();
   backdrop.classList.add("is-open");
@@ -602,6 +665,13 @@ export async function handleLearnerFormSubmit(e) {
   if (learnerMutationBusy) return;
   const form = document.getElementById("learnerForm");
   if (!form.reportValidity()) return;
+  const learnerId = getLearnerFieldValue("f_learnerId").trim();
+  if (!/^\d{12}$/.test(learnerId)) {
+    document.getElementById("f_learnerId")?.setCustomValidity("Enter the learner's 12-digit LRN.");
+    document.getElementById("f_learnerId")?.reportValidity();
+    document.getElementById("f_learnerId")?.setCustomValidity("");
+    return;
+  }
   learnerMutationBusy = true;
   const schoolYear = getSelectedSchoolYear();
   const saveBtn = document.getElementById("learnerSaveBtn");
@@ -609,18 +679,21 @@ export async function handleLearnerFormSubmit(e) {
   saveBtn.classList.add("is-loading");
   saveBtn.innerHTML = `<span class="inline-spinner" aria-hidden="true"></span> Saving…`;
   try {
-    await loadSectionOptions(schoolYear);
-    if (!validateSectionInput()) return;
+    const teacherScope = teacherLearnerScope();
+    if (!teacherScope) {
+      await loadSectionOptions(schoolYear);
+      if (!validateSectionInput()) return;
+    }
     const transferType = getLearnerFieldValue("f_transferType");
     const learner = {
-    learnerId: getLearnerFieldValue("f_learnerId").trim(),
+    learnerId,
     firstName: sentenceCaseName(getLearnerFieldValue("f_firstName")),
     middleName: sentenceCaseName(getLearnerFieldValue("f_middleName")),
     lastName: sentenceCaseName(getLearnerFieldValue("f_lastName")),
     birthDate: getLearnerFieldValue("f_birthDate"),
     age: getLearnerFieldValue("f_age"),
-    gradeLevel: getLearnerFieldValue("f_gradeLevel"),
-    section: getLearnerFieldValue("f_section").trim(),
+    gradeLevel: teacherScope?.gradeLevel || getLearnerFieldValue("f_gradeLevel"),
+    section: teacherScope?.section || getLearnerFieldValue("f_section").trim(),
     gender: getLearnerFieldValue("f_gender"),
     enrollmentStatus: transferType === "Transfer Out" ? "TRANSFERRED_OUT" : getLearnerFieldValue("f_enrollmentStatus"),
     eosyStatus: getLearnerFieldValue("f_eosyStatus"),

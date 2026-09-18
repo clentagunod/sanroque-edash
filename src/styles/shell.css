@@ -1093,3 +1093,44 @@ body.dark-mode .year-select-wrap select { border-color: #52698f; background: #10
 }
 .stat-pill strong { color: var(--ink-900); margin-right: 5px; }
 
+.test-mode-stamp {
+  position: fixed;
+  z-index: 5;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-18deg);
+  color: color-mix(in srgb, var(--ink-500) 34%, transparent);
+  border: 3px solid color-mix(in srgb, var(--ink-500) 28%, transparent);
+  padding: 10px 20px;
+  font-size: clamp(28px, 5vw, 64px);
+  font-weight: 900;
+  letter-spacing: .14em;
+  pointer-events: none;
+  user-select: none;
+  opacity: .32;
+  white-space: nowrap;
+}
+
+.dashboard-context {
+  display: grid;
+  grid-template-columns: minmax(220px, .8fr) minmax(280px, 1.2fr);
+  gap: 24px;
+  align-items: center;
+  margin: 0 0 24px;
+  padding: 22px 24px;
+  background: linear-gradient(120deg, var(--navy-900), var(--navy-800));
+  border-radius: var(--radius-lg);
+  color: #fff;
+  box-shadow: var(--shadow-card);
+}
+.dashboard-welcome { margin: 0 0 5px; font-size: 24px; font-weight: 750; letter-spacing: 0; }
+.dashboard-context-title { margin: 0; color: rgba(255,255,255,.72); font-size: 13px; }
+.dashboard-scope { display: grid; gap: 4px; padding-left: 24px; border-left: 1px solid rgba(255,255,255,.24); }
+.dashboard-scope strong { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: #9fc1ff; }
+.dashboard-scope span { font-size: 16px; font-weight: 650; color: #fff; }
+.dashboard-scope small { color: rgba(255,255,255,.72); font-size: 12px; line-height: 1.45; }
+@media (max-width: 700px) {
+  .dashboard-context { grid-template-columns: 1fr; gap: 16px; padding: 18px; }
+  .dashboard-scope { padding-left: 0; padding-top: 16px; border-left: 0; border-top: 1px solid rgba(255,255,255,.24); }
+}
+

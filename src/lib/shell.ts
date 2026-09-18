@@ -1,6 +1,6 @@
 // @ts-nocheck -- ported from the original site; behavior preserved, not yet fully typed.
 import { LPSApi } from './sheets-api';
-import { APP_ASSET_PREFIX, APP_PAGE_PREFIX, APP_USER_PROFILE, appRole, canViewGradesProfile, isSchoolAdmin, isVisitorSession, normalizedAppRole, setAppUserProfile } from './app-config';
+import { APP_CONFIG, APP_ASSET_PREFIX, APP_PAGE_PREFIX, APP_USER_PROFILE, appRole, canViewGradesProfile, isSchoolAdmin, isVisitorSession, normalizedAppRole, setAppUserProfile } from './app-config';
 import { LPS_SESSION_KEY, displayNameFromEmail, handleLogout, initials } from './auth';
 import { Icon } from './icons';
 import { auth, db } from './firebase';
@@ -172,6 +172,16 @@ export function renderShell(activeKey, pageTitleForMobile) {
   const topbarMount = document.getElementById("topbarMount");
   const mainArea = document.querySelector(".main-area");
   if (!sidebarMount || !topbarMount || !mainArea) return;
+  let testModeStamp = document.getElementById("testModeStamp");
+  if (APP_CONFIG.testMode && !testModeStamp) {
+    testModeStamp = document.createElement("div");
+    testModeStamp.id = "testModeStamp";
+    testModeStamp.className = "test-mode-stamp";
+    testModeStamp.textContent = "TEST MODE";
+    document.body.appendChild(testModeStamp);
+  } else if (!APP_CONFIG.testMode) {
+    testModeStamp?.remove();
+  }
 
   let navHtml = "";
   let lastGroup = null;

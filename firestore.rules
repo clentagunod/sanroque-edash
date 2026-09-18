@@ -92,6 +92,13 @@ service cloud.firestore {
       allow write: if isStaff() && statId == "summary";
     }
 
+    // Advisory year containers are created alongside school-year metadata.
+    // Nested grade/section/teacher documents have their own narrower rules below.
+    match /advisory/{schoolYear} {
+      allow read: if isStaff();
+      allow write: if isAdmin();
+    }
+
     // Archived records are kept separate from active learners by school year.
     match /Dropouts/{schoolYear}/records/{learnerId} {
       allow read, write: if isStaff();

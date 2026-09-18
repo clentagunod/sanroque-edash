@@ -85,7 +85,7 @@
     <form id="learnerForm">
       <div class="modal-body">
         <div class="field-grid">
-          <div class="field span-2"><label for="f_learnerId">LRN number</label><input id="f_learnerId" placeholder="123456789012" value="Generated on save" maxlength="12" inputmode="numeric" pattern="[0-9]{12}" /></div>
+          <div class="field span-2"><label for="f_learnerId">LRN number *</label><input id="f_learnerId" placeholder="123456789012" maxlength="12" inputmode="numeric" pattern="[0-9]{12}" required aria-required="true" /></div>
           <div class="field"><label for="f_firstName">First name</label><input id="f_firstName" required /></div>
           <div class="field"><label for="f_middleName">Middle name</label><input id="f_middleName" /></div>
           <div class="field"><label for="f_lastName">Last name</label><input id="f_lastName" required /></div>

@@ -1,0 +1,12 @@
+<div class="app-shell"><div id="sidebarMount"></div><div class="main-area"><div id="topbarMount"></div><main class="page" data-utility-page="bmi">
+  <div class="page-header"><div><h1>BMI Calculator</h1><p class="desc">Calculate body mass index from height and weight</p></div></div>
+  <section class="panel utility-card">
+    <div class="panel-header"><div><span class="eyebrow">Health tool</span><h3>Body Mass Index</h3></div></div>
+    <div class="panel-body">
+      <p class="utility-description">Use height in meters and weight in kilograms. BMI is a screening measure, not a diagnosis.</p>
+      <div class="field-grid utility-bmi-grid"><label class="field">Height (m)<input id="utilityHeight" type="number" min="0.3" max="2.5" step="0.001" placeholder="e.g. 1.40" /></label><label class="field">Weight (kg)<input id="utilityWeight" type="number" min="1" max="300" step="0.1" placeholder="e.g. 35" /></label></div>
+      <div class="utility-actions"><button class="btn btn-primary" id="calculateBmiBtn" type="button">Calculate BMI</button><button class="btn btn-secondary" id="resetBmiBtn" type="button">Clear</button></div>
+      <div class="utility-result" id="bmiResult" aria-live="polite"><span>BMI</span><strong>—</strong><small>Enter a valid height and weight.</small></div>
+    </div>
+  </section>
+</main></div></div>

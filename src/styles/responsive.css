@@ -1,0 +1,58 @@
+/* =========================================================================
+   Global responsive breakpoints for the shared app shell + admin console.
+   Loaded once, globally (see src/main.tsx), after shell.css and
+   pages/manage-users.css so its overrides win at equal specificity.
+   ========================================================================= */
+/* ---- Responsive ------------------------------------------------------------ */
+
+@media (max-width: 1180px) {
+  .stat-grid { grid-template-columns: repeat(3, 1fr); }
+  .two-col { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 860px) {
+  .sidebar { transform: translateX(-100%); }
+  .sidebar.is-open { transform: translateX(0); box-shadow: var(--shadow-pop); }
+  .main-area { margin-left: 0; }
+  .topbar-menu-btn { display: flex; align-items: center; }
+  .stat-grid { grid-template-columns: repeat(2, 1fr); }
+  .field-grid, .checkbox-grid { grid-template-columns: 1fr; }
+  .topbar-user-text { display: none; }
+}
+
+@media (max-width: 560px) {
+  .stat-grid { grid-template-columns: 1fr; }
+  .page { padding: 18px 16px 40px; }
+  .page-header h1 { font-size: 21px; }
+  .year-switcher { align-items: stretch; flex-wrap: wrap; }
+  .year-switcher-copy { flex: 1; }
+  .year-select-wrap { width: 100%; margin-left: 52px; }
+  .year-select-wrap select { width: 100%; }
+  .year-current-badge { align-self: flex-start; margin-top: 3px; }
+  .nutrition-inputs, .reading-inputs { grid-template-columns: 1fr; }
+  .toolbar { flex-direction: column; align-items: stretch; }
+  .search-box { min-width: 0; }
+  .select-filter { width: 100%; }
+  .modal-body, .modal-header, .modal-footer { padding-left: 16px; padding-right: 16px; }
+  .pagination { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .admin-console { padding: 18px; }
+  .admin-console-heading { flex-direction: column; }
+  .admin-console-mark { position: absolute; right: 0; top: 0; }
+  .admin-control-grid { grid-template-columns: 1fr; }
+  .admin-backup-content { align-items: flex-start; flex-direction: column; }
+  .admin-backup-button { width: 100%; margin-left: 0; }
+  .admin-backup-actions { width: 100%; margin-left: 0; flex-direction: column; }
+  .admin-backup-actions .btn { width: 100%; }
+  .admin-control-copy small { white-space: normal; }
+  .admin-panel-header { align-items: stretch; flex-direction: column; }
+  .admin-year-actions { align-items: stretch; flex-direction: column; }
+  .admin-year-actions, .admin-year-picker, .admin-year-picker select, .admin-year-actions .btn { width: 100%; }
+  .admin-section-grid { grid-template-columns: 1fr; padding-left: 12px; padding-right: 12px; }
+  .firestore-usage-head { flex-direction: column; }
+  .usage-quota-grid { grid-template-columns: 1fr; padding: 14px 16px; }
+  .usage-chart-wrap { margin-left: 16px; margin-right: 16px; }
+  .access-management-label { align-items: stretch; flex-direction: column; }
+  .access-management-label > div { align-items: flex-start; flex-direction: column; gap: 2px; }
+  .access-management-label .btn { width: 100% !important; }
+}
+

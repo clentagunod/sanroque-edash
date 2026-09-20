@@ -1,0 +1,75 @@
+/* =========================================================================
+   Feedback page — styles used only by src/pages/FeedbackPage.tsx.
+   ========================================================================= */
+/* ---- Feedback ------------------------------------------------------------ */
+
+.feedback-page { max-width: 1120px; }
+.feedback-eyebrow { color: var(--blue-600); }
+.feedback-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, .72fr) minmax(0, 1.55fr);
+  gap: 20px;
+  align-items: start;
+}
+.feedback-intro {
+  min-height: 100%;
+  padding: 28px;
+  background: linear-gradient(145deg, #10254a 0%, #244f87 58%, #247b70 100%) !important;
+  color: #fff;
+  overflow: hidden;
+  position: relative;
+}
+.feedback-intro::after {
+  content: "";
+  position: absolute;
+  width: 150px;
+  height: 150px;
+  right: -58px;
+  bottom: -62px;
+  border: 1px solid rgba(255,255,255,.22);
+  border-radius: 50%;
+  box-shadow: 0 0 0 22px rgba(255,255,255,.06), 0 0 0 44px rgba(255,255,255,.04);
+}
+.feedback-intro-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 28px;
+  border: 1px solid rgba(255,255,255,.3);
+  border-radius: 13px;
+  color: #bdebe1;
+  font-size: 23px;
+}
+.feedback-intro-icon svg { width: 23px; height: 23px; }
+.feedback-intro h2 { max-width: 280px; color: #fff; font-size: 24px; line-height: 1.2; }
+.feedback-intro p { max-width: 310px; margin-top: 14px; color: #d7e5f7; font-size: 13.5px; line-height: 1.65; }
+.feedback-privacy { display: flex; gap: 9px; align-items: flex-start; margin-top: 34px; color: #c7eee5; font-size: 11.5px; line-height: 1.45; }
+.feedback-privacy span:first-child { color: #8be0ca; font-weight: 800; }
+.feedback-form-panel { overflow: hidden; }
+.feedback-form-panel .panel-header { align-items: flex-start; }
+.feedback-scale-note { color: var(--ink-500); font-size: 11.5px; white-space: nowrap; }
+.feedback-form-body { padding: 22px 24px 8px; }
+.feedback-form-body small { display: block; margin-top: 5px; color: var(--ink-500); font-size: 11px; }
+.feedback-rating-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 20px 0 22px; }
+.feedback-rating-field { display: grid; gap: 6px; }
+.feedback-rating-field label { color: var(--ink-700); font-size: 12.5px; font-weight: 700; }
+.feedback-rating-field select { width: 100%; padding: 10px 12px; border: 1px solid var(--line-200); border-radius: var(--radius-md); background: var(--bg-card); color: var(--ink-700); font: inherit; font-size: 13px; }
+.feedback-rating-field select:focus, .feedback-comment-field textarea:focus { outline: none; border-color: var(--blue-600); box-shadow: 0 0 0 3px var(--blue-100); }
+.feedback-comment-field textarea { width: 100%; resize: vertical; padding: 11px 12px; border: 1px solid var(--line-200); border-radius: var(--radius-md); background: var(--bg-card); color: var(--ink-700); font: inherit; font-size: 13px; }
+.feedback-form-footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 24px 22px; border-top: 1px solid var(--line-100); }
+.feedback-status { flex: 1; padding: 9px 11px; border-radius: var(--radius-md); font-size: 12px; line-height: 1.4; }
+.feedback-status.success { background: var(--success-100); color: var(--success-600); }
+.feedback-status.error { background: var(--danger-100); color: var(--danger-600); }
+body.dark-mode .feedback-intro { background: linear-gradient(145deg, #142541 0%, #1d426e 58%, #1d5e57) !important; }
+body.dark-mode .feedback-eyebrow,
+body.dark-mode .feedback-scale-note,
+body.dark-mode .feedback-form-body small { color: #a9bde0; }
+body.dark-mode .feedback-rating-field label { color: #f0f0f0; }
+body.dark-mode .feedback-rating-field select,
+body.dark-mode .feedback-comment-field textarea,
+body.dark-mode #feedbackEmail { background: #101010; color: #f5f5f5; border-color: #3a3a3a; }
+body.dark-mode .feedback-rating-field select option { background: #181818; color: #f5f5f5; }
+body.dark-mode .feedback-comment-field textarea::placeholder { color: #929292; opacity: 1; }
+body.dark-mode .feedback-form-footer { border-top-color: #303030; }
+

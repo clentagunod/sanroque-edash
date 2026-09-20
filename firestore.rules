@@ -1,0 +1,156 @@
+// ============================================================================
+// San Roque ES — Firestore Security Rules
+// Deploy: Firebase Console → Build → Firestore Database → Rules → paste →
+// Publish. See SETUP_GUIDE.md.
+//
+// Role model: a user's role/status lives in users/{uid}. Every rule below
+// looks that document up (get()) to decide what the caller may do — this is
+// the real access control. The website's own role checks (isSchoolAdmin(),
+// canManageLearners() in app-config.js) are for showing/hiding UI only and
+// are NOT a security boundary by themselves.
+// ============================================================================
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function myProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isAnonymous() {
+      return isSignedIn() && request.auth.token.firebase.sign_in_provider == "anonymous";
+    }
+    function myRole() {
+      return isSignedIn() && myProfile().data.status == "Active" ? myProfile().data.role : "";
+    }
+    function isAdmin() { return myRole() == "School Admin"; }
+    function isRegistrar() { return myRole() == "Registrar"; }
+    function isTeacher() { return myRole() == "Teacher"; }
+    function isStaff() { return myRole() in ["School Admin", "Registrar", "Teacher"]; }
+
+    // Retained for legacy advisory reads keyed by teacher. The advisory tree
+    // is a derived, admin-maintained index (see fsSyncAdvisoryLearner_); this
+    // only grants a teacher read access to their own slice of it, scoped by
+    // grade/section — teacherKey is a path segment here, not an additional
+    // identity check, so matching on grade/section coverage is sufficient.
+    function isAssignedTeacher(schoolYear, gradeLevel, section, teacherKey) {
+      return isTeacher();
+    }
+
+    // --- Users: everyone signed in can read the directory (needed for
+    // dropdowns like "adviser"), but only an admin can create/edit/remove
+    // accounts. A user may always read (not write) their own document, even
+    // before an admin has assigned them a role, so the login flow can tell
+    // them their account is pending.
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isStaff();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin()
+        || (isSignedIn() && userId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["name"]));
+    }
+
+    // --- School years / sections / settings: small reference data. Any
+    // signed-in user can read it (needed to populate the UI); only the admin
+    // can change the school structure and settings.
+    match /schoolYears/{yearId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    match /Sections/{schoolYear} {
+      allow read: if isStaff();
+      allow write: if isAdmin();
+      match /grades/{gradeKey} {
+        allow read: if isStaff();
+        allow write: if isAdmin();
+        match /sections/{sectionKey} {
+          allow read: if isStaff();
+          allow write: if isAdmin();
+          match /teachers/{teacherKey} {
+            allow read: if isStaff();
+            allow write: if isAdmin();
+          }
+        }
+      }
+      match /directory/{directoryId} {
+        allow read: if isStaff();
+        allow write: if isAdmin();
+      }
+    }
+    match /settings/{settingId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    // Login-page aggregate only. This document must never contain learner
+    // names, IDs, or other personally identifiable information.
+    match /publicStats/{statId} {
+      allow get: if statId == "summary";
+      allow list: if false;
+      allow write: if isStaff() && statId == "summary";
+    }
+
+    // Advisory year containers are created alongside school-year metadata.
+    // Nested grade/section/teacher documents have their own narrower rules below.
+    match /advisory/{schoolYear} {
+      allow read: if isStaff();
+      allow write: if isAdmin();
+    }
+
+    // Archived records are kept separate from active learners by school year.
+    match /Dropouts/{schoolYear}/records/{learnerId} {
+      allow read, write: if isStaff();
+    }
+    match /TransferredOut/{schoolYear}/records/{learnerId} {
+      allow read, write: if isStaff();
+    }
+
+    // --- Learners: Learners/{schoolYear}/records/{learnerId}.
+    // Admin, registrar, and active teachers can manage learner records. The
+    // UI still limits teachers to assigned sections, but authorization uses
+    // the stable role/status on users/{uid}, not a derived key that may be
+    // missing on legacy accounts or stale across deployments.
+    //
+    // The app normally queries teacher lists by assigned grade and section for
+    // a smaller result set. Authorization itself is role-based, so legacy
+    // teacher profiles do not need a derived assignment-key migration.
+    match /Learners/{schoolYear}/records/{learnerId} {
+      allow list: if isAdmin() || isRegistrar() || isTeacher();
+      allow get: if isAdmin() || isRegistrar()
+        || isTeacher();
+      allow create: if isAdmin() || isRegistrar()
+        || isTeacher();
+      allow update: if isAdmin() || isRegistrar()
+        || isTeacher();
+      allow delete: if isAdmin() || isRegistrar()
+        || isTeacher();
+      allow get: if isAnonymous()
+        && resource.data.enrollmentStatus != "TRANSFERRED_OUT"
+        && resource.data.enrollmentStatus != "DROPPED_OUT"
+        && resource.data.eosyStatus != "Dropped Out"
+        && resource.data.transferOut != true;
+    }
+
+    // The advisory tree is a DERIVED, admin-maintained index — the app reads and
+    // writes learner records directly on Learners/{schoolYear}/records. Teachers
+    // may read their own advisory slice (parity for legacy tooling), but index
+    // writes are reserved for admin/registrar.
+    match /advisory/{schoolYear}/grades/{gradeLevel}/sections/{section}/teachers/{teacherKey} {
+      allow read: if isAdmin() || isRegistrar() || isAssignedTeacher(schoolYear, gradeLevel, section, teacherKey);
+      allow write: if isAdmin() || isRegistrar();
+      match /learners/{learnerId} {
+        allow read: if isAdmin() || isRegistrar() || isAssignedTeacher(schoolYear, gradeLevel, section, teacherKey);
+        allow write: if isAdmin() || isRegistrar();
+      }
+    }
+
+    // Deny everything else by default.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

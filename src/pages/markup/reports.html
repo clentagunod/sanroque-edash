@@ -1,0 +1,54 @@
+<div class="app-shell">
+  <div id="sidebarMount"></div>
+  <div class="main-area">
+    <div id="topbarMount"></div>
+    <main class="page">
+      <div class="page-header">
+        <div>
+          <h1>Statistics</h1>
+          <p class="desc">Enrollment totals and program distribution by school year</p>
+        </div>
+        <button class="btn btn-primary" id="exportBtn" style="width:auto;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+          Export Excel
+        </button>
+      </div>
+
+      <div class="form-alert" id="demoBanner" style="display:none; background:var(--warning-100); color:var(--warning-600);">
+        <span>Showing sample data. Connect your Google Sheet to see live reports.</span>
+      </div>
+      <div id="yearSwitcherMount"></div>
+      <div class="stat-pill-row" id="statPillRow"></div>
+
+      <div class="two-col">
+        <section class="panel">
+          <div class="panel-header"><h3>Learners by Grade Level</h3></div>
+          <div class="panel-body"><div class="bar-chart" id="gradeBarChart"></div></div>
+        </section>
+        <section class="panel">
+          <div class="panel-header"><h3>Program Distribution</h3></div>
+          <div class="panel-body">
+            <div class="donut-wrap"><div id="donutSvg"></div><div class="legend-list" id="donutLegend"></div></div>
+          </div>
+        </section>
+      </div>
+
+      <div class="three-col" style="margin-top:20px;">
+        <section class="panel"><div class="panel-header"><h3>Reading profiles by grade</h3></div><div class="panel-body"><div class="bar-chart" id="readingProfileGraph"></div></div></section>
+        <section class="panel"><div class="panel-header"><h3>Math profiles by grade</h3></div><div class="panel-body"><div class="bar-chart" id="mathProfileGraph"></div></div></section>
+        <section class="panel"><div class="panel-header"><h3>Nutritional records by grade</h3></div><div class="panel-body"><div class="bar-chart" id="nutritionProfileGraph"></div></div></section>
+      </div>
+
+      <section class="panel" style="margin-top:20px;">
+        <div class="panel-header"><h3>Grade and Program Breakdown</h3></div>
+        <div style="overflow-x:auto;">
+          <table class="data-table" style="min-width:650px;">
+            <thead><tr><th>Grade Level</th><th>Total Learners</th><th>Male</th><th>Female</th><th>4Ps</th><th>IP</th><th>SNED</th><th>ARAL</th><th>Muslim</th></tr></thead>
+            <tbody id="breakdownTableBody"><tr><td colspan="9" class="state-row">Loading report…</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>

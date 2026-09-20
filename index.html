@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>San Roque Elementary School — Realtime Enrollment Dashboard</title>
+
+<!--
+  Flash-of-wrong-theme guard, inlined here (not in the bundled stylesheet)
+  so it applies the instant the parser reaches this point in <head> —
+  before any external CSS or JS has had a chance to load over the
+  network. Two parts, both required:
+    1. This <style> block: a minimal, hard-coded dark palette matching
+       the real `.dark-mode` theme in src/styles/base/tokens.css closely
+       enough to avoid a visible flash while that stylesheet is loading.
+       Kept alive by the `dark-mode-preload` class on <html> until
+       src/lib/shell.ts's applySavedTheme() removes it.
+    2. The inline <script> right after it: reads the saved preference and
+       applies both classes synchronously, before first paint — instead
+       of waiting on React to mount and run applySavedTheme() itself.
+  Keep the colors below in sync with `body.dark-mode` in
+  src/styles/base/tokens.css if that palette ever changes.
+-->
+<style>
+  html.dark-mode-preload, html.dark-mode-preload body { background: #101010; color: #d5d5d5; }
+  html.dark-mode-preload .topbar { background: #181818; border-bottom-color: #303030; }
+  html.dark-mode-preload .sidebar { background: #101010; border-right-color: #2a2a2a; }
+  html.dark-mode-preload .panel, html.dark-mode-preload .stat-card { background: #181818; }
+</style>
+<script>
+  try {
+    // Never pre-apply the dark flash-guard on the login page: that page is
+    // intentionally theme-independent and always renders in light mode, even
+    // when the signed-in dashboards have dark mode enabled.
+    var __lpsLoginPath = window.location.pathname;
+    var __lpsIsLogin = __lpsLoginPath === "/" || /\/index\.html$/i.test(__lpsLoginPath);
+    if (!__lpsIsLogin && localStorage.getItem('lps_theme') === 'dark') {
+      document.documentElement.classList.add('dark-mode-preload');
+    }
+  } catch (error) {
+    /* Storage unavailable (private browsing, etc.) — default to light. */
+  }
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="/assets/favicon.png" onerror="this.remove()" />
+
+<!--
+  Firebase SDK (compat build) — kept as-is from the original site so the
+  Firestore/Auth data layer (src/lib/firestore-api.ts) does not need to be
+  rewritten against the modular SDK. See README.md.
+
+  `defer` on all three keeps them off the critical rendering path: the
+  browser can parse the rest of the document and start loading everything
+  else (fonts, the app bundle, its CSS) in parallel instead of stalling on
+  three sequential render-blocking requests to a third-party CDN — this
+  was the main cause of the dashboard/login pages appearing to hang on
+  slower connections. `defer` still guarantees these three run in this
+  exact order, and before src/main.tsx (itself deferred by default as a
+  module script), which is what firebase-auth-compat.js and
+  firebase-firestore-compat.js need from firebase-app-compat.js.
+-->
+<script defer src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+  <script>
+    try {
+      // Same rule as the <head> script above: the login page is always light.
+      // Other routes (the authenticated shell) still honor the saved theme.
+      var __lpsLoginBodyPath = window.location.pathname;
+      var __lpsIsLoginBody = __lpsLoginBodyPath === "/" || /\/index\.html$/i.test(__lpsLoginBodyPath);
+      if (!__lpsIsLoginBody && localStorage.getItem('lps_theme') === 'dark') {
+        document.body.classList.add('dark-mode');
+      }
+    } catch (error) {
+      /* Storage unavailable — default to light. */
+    }
+  </script>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>

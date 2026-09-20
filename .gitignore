@@ -1,0 +1,9 @@
+node_modules
+dist
+*.tsbuildinfo
+.DS_Store
+apps-script
+.env
+.env.*
+.env.example
+service-account*.json

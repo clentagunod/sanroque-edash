@@ -1,0 +1,11 @@
+/* =========================================================================
+   Global stylesheet entry point.
+   Imports the styles every page needs (design tokens + shared app shell +
+   responsive rules). Page-specific stylesheets (src/styles/pages/*.css)
+   are imported by their own page component instead, so a lazy-loaded
+   page's CSS ships in that page's own chunk.
+   See src/styles/README.md for the full breakdown.
+   ========================================================================= */
+@import './base/tokens.css';
+@import './shell.css';
+@import './responsive.css';

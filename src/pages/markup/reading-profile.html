@@ -1,0 +1,26 @@
+<div class="app-shell">
+  <div id="sidebarMount"></div>
+  <div class="main-area">
+    <div id="topbarMount"></div>
+    <main class="page">
+      <div class="page-header">
+        <div><h1>Reading Profile</h1><p class="desc">CRLA and Phil-IRI reading progress across the school year</p></div>
+        <button class="btn btn-primary" id="exportReadingBtn" style="width:auto;">Export Excel</button>
+      </div>
+      <div id="yearSwitcherMount"></div>
+      <div class="toolbar profile-filters">
+        <div class="search-box"><input id="readingSearch" type="search" placeholder="Search learner or LRN..." /></div>
+        <select class="select-filter" id="readingPeriodFilter"><option value="">All Assessment Periods</option><option value="bosy">BOSY</option><option value="mosy">MOSY</option><option value="eosy">EOSY</option></select>
+        <select class="select-filter" id="readingGradeFilter"><option value="">All Grade Levels</option><option>Kinder</option><option>Grade 1</option><option>Grade 2</option><option>Grade 3</option><option>Grade 4</option><option>Grade 5</option><option>Grade 6</option></select>
+        <select class="select-filter" id="readingSexFilter"><option value="">All Sex</option><option>Male</option><option>Female</option></select>
+        <select class="select-filter" id="readingStatusFilter"><option value="">All Reading Classifications</option></select>
+      </div>
+      <div class="stat-pill-row" id="readingSummary"></div>
+      <section class="panel">
+        <div class="panel-header"><h3>BOSY, MOSY, and EOSY Reading Profile</h3></div>
+        <div style="overflow-x:auto;"><table class="data-table reading-profile-table" style="min-width:950px;"><thead><tr><th>Name</th><th>Grade</th><th>Gender</th><th>BOSY<br><small>Reference / Level</small></th><th>MOSY<br><small>Reference / Level</small></th><th>EOSY<br><small>Reference / Level</small></th><th>Change</th></tr></thead><tbody id="readingTableBody"><tr><td colspan="7" class="state-row">Loading reading profiles...</td></tr></tbody></table></div>
+      </section>
+      <div class="pagination"><span id="readingPageInfo">-</span><div class="pager-btns" id="readingPagerBtns"></div></div>
+    </main>
+  </div>
+</div>

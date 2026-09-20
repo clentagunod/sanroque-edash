@@ -1,0 +1,92 @@
+<div class="app-shell">
+  <div id="sidebarMount"></div>
+
+  <div class="main-area">
+    <div id="topbarMount"></div>
+
+    <main class="page">
+      <div class="page-header">
+        <div>
+          <h1>Dashboard</h1>
+          <p class="desc">Overview of learner profiles and program tagging</p>
+        </div>
+        <div class="date-chip">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M16 3v3M8 3v3M3 9.5h18"/></svg>
+          <span id="todayDate">Loading date…</span>
+        </div>
+      </div>
+
+      <section class="dashboard-context" aria-label="Dashboard scope">
+        <div>
+          <p class="dashboard-welcome" id="dashboardWelcome">Welcome</p>
+          <p class="dashboard-context-title">Your operational overview</p>
+        </div>
+        <div class="dashboard-scope" id="dashboardScope"></div>
+      </section>
+
+      <div class="form-alert" id="demoBanner" style="display:none; background:var(--warning-100); color:var(--warning-600);">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        <span>Showing sample data — connect your Google Sheet in <code>js/firebase-config.js</code> (see SETUP_GUIDE.md) to see live enrollment data.</span>
+      </div>
+
+      <div id="yearSwitcherMount"></div>
+
+      <div class="stat-grid" id="statGrid">
+        <div class="stat-card"><div class="skeleton" style="height:80px;"></div></div>
+        <div class="stat-card"><div class="skeleton" style="height:80px;"></div></div>
+        <div class="stat-card"><div class="skeleton" style="height:80px;"></div></div>
+        <div class="stat-card"><div class="skeleton" style="height:80px;"></div></div>
+        <div class="stat-card"><div class="skeleton" style="height:80px;"></div></div>
+      </div>
+
+      <div class="two-col">
+        <section class="panel">
+          <div class="panel-header"><h3>Learner Distribution by Program</h3></div>
+          <div class="panel-body">
+            <div class="donut-wrap">
+              <div id="donutSvg"></div>
+              <div class="legend-list" id="donutLegend"></div>
+            </div>
+          </div>
+          <div class="panel-note">Note: Learners may belong to more than one program.</div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header"><h3>Learners by Grade Level</h3></div>
+          <div class="panel-body">
+            <div class="bar-chart" id="gradeBarChart"></div>
+          </div>
+        </section>
+      </div>
+
+      <div class="two-col">
+        <section class="panel">
+          <div class="panel-header">
+            <h3>Recent Added Learners</h3>
+          </div>
+          <div class="panel-body" style="padding-top:8px;">
+            <div style="overflow-x:auto;">
+              <table class="data-table" style="min-width:420px;">
+                <thead><tr><th>Name</th><th>Grade &amp; Section</th><th>Date Added</th></tr></thead>
+                <tbody id="recentTableBody">
+                  <tr><td colspan="3" class="state-row">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div style="margin-top:14px;">
+              <a class="panel-link" href="masterlist.html">View All Learners
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
+              </a>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header"><h3>Program Summary</h3></div>
+          <div class="panel-body" style="padding-top:6px;" id="programSummary"></div>
+        </section>
+      </div>
+
+    </main>
+  </div>
+</div>

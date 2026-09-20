@@ -1,0 +1,42 @@
+<div class="app-shell">
+  <div id="sidebarMount"></div>
+  <div class="main-area">
+    <div id="topbarMount"></div>
+    <main class="page">
+      <div class="page-header">
+        <div>
+          <h1>Enrollment Data</h1>
+          <p class="desc">Section enrollment by grade level, adviser, and gender</p>
+        </div>
+      </div>
+
+      <div id="enrollmentAlert" class="form-alert" style="display:none;"></div>
+      <div id="yearSwitcherMount"></div>
+
+      <section class="panel enrollment-panel">
+        <div class="panel-header enrollment-panel-header">
+          <div>
+            <span class="eyebrow">Enrollment summary</span>
+            <h3 id="enrollmentTitle">School year</h3>
+          </div>
+          <button class="btn btn-secondary" id="syncEnrollmentBtn" type="button">Sync counts to sheet</button>
+          <div class="enrollment-metrics" aria-label="Enrollment totals">
+            <div class="enrollment-metric male-metric"><span>Male</span><strong id="enrollmentTotalMale">—</strong></div>
+            <div class="enrollment-metric female-metric"><span>Female</span><strong id="enrollmentTotalFemale">—</strong></div>
+            <div class="enrollment-metric total-metric"><span>Overall total</span><strong id="enrollmentGrandTotal">—</strong></div>
+          </div>
+        </div>
+        <div class="enrollment-table-wrap">
+          <table class="data-table enrollment-table">
+            <thead>
+              <tr><th>Grade Level</th><th>Section</th><th>Adviser</th><th class="number-cell">Male</th><th class="number-cell">Female</th><th class="number-cell">Total</th></tr>
+            </thead>
+            <tbody id="enrollmentTableBody">
+              <tr><td colspan="6" class="state-row">Loading enrollment data...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>

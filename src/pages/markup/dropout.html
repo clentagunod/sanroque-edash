@@ -1,0 +1,44 @@
+<div class="app-shell">
+  <div id="sidebarMount"></div>
+  <div class="main-area">
+    <div id="topbarMount"></div>
+    <main class="page">
+      <div class="page-header">
+        <div>
+          <h1>Dropout</h1>
+          <p class="desc">Read-only list of dropout students for the selected school year</p>
+        </div>
+      </div>
+
+      <div id="yearSwitcherMount"></div>
+      <div class="stat-pill-row" id="dropoutSummary"></div>
+      <div class="toolbar profile-filters">
+        <div class="search-box"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input id="dropoutSearch" type="search" placeholder="Search learner, LRN, grade, or section..." /></div>
+        <select class="select-filter" id="dropoutGradeFilter"><option value="">All Grade Levels</option><option>Kinder</option><option>Grade 1</option><option>Grade 2</option><option>Grade 3</option><option>Grade 4</option><option>Grade 5</option><option>Grade 6</option></select>
+        <select class="select-filter" id="dropoutGenderFilter"><option value="">All Sex</option><option>Male</option><option>Female</option></select>
+      </div>
+      <section class="panel">
+        <div class="panel-header"><h3>Dropout Students</h3><span class="muted-text">Read only</span></div>
+        <div style="overflow-x:auto;">
+          <table class="data-table" style="min-width:850px;">
+            <thead>
+              <tr>
+                <th>Learner ID</th>
+                <th>Name</th>
+                <th>Grade &amp; Section</th>
+                <th>Gender</th>
+                <th>Status</th>
+                <th>Date Added</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="dropoutTableBody">
+              <tr><td colspan="7" class="state-row">Loading dropout records…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <div class="pagination"><span id="dropoutPageInfo">-</span><div class="pager-btns" id="dropoutPagerBtns"></div></div>
+    </main>
+  </div>
+</div>

@@ -1,0 +1,288 @@
+/* =========================================================================
+   EduAI page — styles used only by src/pages/EduaiPage.tsx.
+   ========================================================================= */
+/* ---- EduAI --------------------------------------------------------------- */
+
+.eduai-page { max-width: 1120px; }
+.eduai-eyebrow { color: #6e55d9; }
+.eduai-layout { display: grid; grid-template-columns: minmax(220px, .72fr) minmax(0, 1.55fr); gap: 20px; align-items: stretch; }
+.eduai-intro { position: relative; min-height: 390px; padding: 28px; overflow: hidden; color: #fff; background: linear-gradient(145deg, #211951 0%, #50418e 56%, #1d7a77 100%) !important; }
+.eduai-intro::after { content: ""; position: absolute; width: 190px; height: 190px; right: -75px; bottom: -75px; border: 1px solid rgba(255,255,255,.24); border-radius: 50%; box-shadow: 0 0 0 24px rgba(255,255,255,.06), 0 0 0 48px rgba(255,255,255,.04); }
+.eduai-icon { width: 44px; height: 44px; display: grid; place-items: center; margin-bottom: 22px; border: 1px solid rgba(255,255,255,.32); border-radius: 13px; color: #e7dfff; font-size: 24px; }
+.eduai-status { display: inline-flex; padding: 5px 9px; border: 1px solid rgba(255,255,255,.28); border-radius: 999px; color: #e2fff7; font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.eduai-intro h2 { max-width: 290px; margin-top: 17px; color: #fff; font-size: 25px; line-height: 1.18; }
+.eduai-intro p { max-width: 320px; margin-top: 14px; color: #e7e0fa; font-size: 13.5px; line-height: 1.65; }
+.eduai-points { display: grid; gap: 12px; margin-top: 28px; }
+.eduai-points div { display: grid; grid-template-columns: 25px 1fr; column-gap: 9px; }
+.eduai-points span { grid-row: span 2; color: #b9eee3; font-size: 10px; font-weight: 800; }
+.eduai-points strong { color: #fff; font-size: 12.5px; }
+.eduai-points small { color: #cfc9e8; font-size: 11px; line-height: 1.4; }
+.eduai-preview-panel { overflow: hidden; }
+.eduai-preview-body { min-height: 320px; display: grid; grid-template-columns: minmax(150px, .75fr) 1.25fr; align-items: center; gap: 18px; padding: 28px; background: radial-gradient(circle at 20% 50%, rgba(111,85,217,.12), transparent 45%); }
+.eduai-orbit { width: 170px; height: 170px; position: relative; margin: auto; border: 1px solid var(--line-200); border-radius: 50%; box-shadow: 0 0 0 22px color-mix(in srgb, var(--blue-100) 45%, transparent), 0 0 0 44px color-mix(in srgb, var(--blue-100) 20%, transparent); }
+.eduai-orbit::before, .eduai-orbit::after { content: ""; position: absolute; inset: 25px; border: 1px solid var(--line-200); border-radius: 50%; transform: rotate(45deg) scaleX(1.55); }
+.eduai-orbit::after { transform: rotate(-45deg) scaleX(1.55); }
+.eduai-orbit span { position: absolute; inset: 66px; z-index: 1; border-radius: 50%; background: linear-gradient(135deg, #6e55d9, #39a99a); box-shadow: 0 0 22px rgba(88,124,210,.48); }
+.eduai-orbit i, .eduai-orbit b { position: absolute; z-index: 2; width: 9px; height: 9px; border-radius: 50%; background: #6e55d9; box-shadow: 0 0 0 5px rgba(110,85,217,.13); }
+.eduai-orbit i { top: 24px; left: 82px; } .eduai-orbit b { right: 21px; bottom: 36px; background: #36a998; }
+.eduai-preview-copy h2 { color: var(--ink-900); font-size: 24px; line-height: 1.2; }
+.eduai-preview-copy p { max-width: 360px; margin-top: 12px; color: var(--ink-500); font-size: 13.5px; line-height: 1.65; }
+.eduai-progress { display: grid; gap: 8px; margin-top: 26px; }
+.eduai-progress span { display: block; height: 6px; overflow: hidden; border-radius: 999px; background: var(--line-100); }
+.eduai-progress span i { display: block; width: 42%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #6e55d9, #38a899); }
+.eduai-progress strong { color: var(--ink-500); font-size: 11px; font-weight: 700; }
+body.dark-mode .eduai-intro { background: linear-gradient(145deg, #201b43 0%, #443876 56%, #185e5b) !important; }
+body.dark-mode .eduai-eyebrow { color: #b9aaff; }
+
+@media (max-width: 760px) { .eduai-layout { grid-template-columns: 1fr; } .eduai-intro { min-height: auto; } }
+@media (max-width: 520px) { .eduai-preview-body { grid-template-columns: 1fr; padding: 22px 18px; } .eduai-orbit { width: 145px; height: 145px; } .eduai-orbit span { inset: 54px; } }
+
+@media (max-width: 760px) {
+  .feedback-layout { grid-template-columns: 1fr; }
+  .feedback-intro { min-height: auto; padding: 22px; }
+  .feedback-intro-icon { margin-bottom: 18px; }
+}
+
+@media (max-width: 520px) {
+  .feedback-rating-grid { grid-template-columns: 1fr; }
+  .feedback-form-body { padding: 18px 16px 4px; }
+  .feedback-form-footer { align-items: stretch; flex-direction: column; padding: 14px 16px 18px; }
+  .feedback-form-footer .btn { width: 100% !important; }
+  .feedback-scale-note { display: none; }
+}
+
+.login-card {
+  width: 100%;
+  max-width: 380px;
+}
+
+.login-card h2 {
+  font-size: 23px;
+  margin-bottom: 6px;
+}
+
+.login-card .sub {
+  color: var(--ink-500);
+  font-size: 14.5px;
+  margin-bottom: 28px;
+  display: block;
+}
+
+.field {
+  margin-bottom: 18px;
+}
+
+.field label {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink-700);
+  margin-bottom: 6px;
+}
+
+.field input {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid var(--line-200);
+  border-radius: var(--radius-md);
+  font-size: 14.5px;
+  font-family: inherit;
+  color: var(--ink-900);
+  background: #fbfcfe;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.field input:focus {
+  outline: none;
+  border-color: var(--blue-600);
+  box-shadow: 0 0 0 3px var(--blue-100);
+  background: #fff;
+}
+
+.field-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22px;
+  font-size: 13.5px;
+}
+
+.field-row label {
+  display: flex; align-items: center; gap: 8px;
+  color: var(--ink-500);
+  font-weight: 500;
+}
+
+.field-row a { color: var(--blue-600); font-weight: 600; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 18px;
+  border-radius: var(--radius-md);
+  font-size: 14.5px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
+}
+
+.btn:active { transform: translateY(1px); }
+
+.btn-primary {
+  background: var(--blue-600);
+  color: #fff;
+  width: 100%;
+}
+.btn-primary:hover { background: #2a5fd1; }
+.btn-primary:disabled { background: #9db6f2; cursor: not-allowed; }
+
+.btn-secondary {
+  background: #fff;
+  border-color: var(--line-200);
+  color: var(--ink-700);
+}
+.btn-secondary:hover { background: var(--bg-app); }
+
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 22px 0 14px;
+  color: var(--ink-300);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.login-divider::before,
+.login-divider::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: var(--line-200);
+}
+
+.visitor-login {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #cbd9ee;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, #f7faff 0%, #eef7f5 100%);
+  color: var(--ink-700);
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 5px 14px rgba(36, 73, 126, 0.06);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.visitor-login:hover {
+  border-color: #8faedc;
+  box-shadow: 0 9px 20px rgba(36, 73, 126, 0.12);
+  transform: translateY(-1px);
+}
+
+.visitor-login:focus-visible {
+  outline: none;
+  border-color: var(--blue-600);
+  box-shadow: 0 0 0 3px var(--blue-100), 0 9px 20px rgba(36, 73, 126, 0.12);
+}
+
+.visitor-login:active { transform: translateY(0); }
+
+.visitor-login-icon {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 38px;
+  border-radius: 11px;
+  background: #dceee9;
+  color: #237361;
+}
+
+.visitor-login-icon svg { width: 21px; height: 21px; }
+
+.visitor-login-copy {
+  min-width: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  visibility: visible;
+}
+
+.visitor-login-copy strong {
+  color: var(--ink-900);
+  font-size: 13.5px;
+  line-height: 1.25;
+}
+
+.visitor-login-copy small {
+  overflow: hidden;
+  color: var(--ink-500);
+  font-size: 11.5px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.visitor-login-arrow {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  color: var(--blue-600);
+  transition: transform 0.2s ease;
+}
+
+.visitor-login:hover .visitor-login-arrow { transform: translateX(3px); }
+
+.btn-danger-outline {
+  background: #fff;
+  border-color: var(--danger-100);
+  color: var(--danger-600);
+}
+.btn-danger-outline:hover { background: var(--danger-100); }
+
+.form-alert {
+  display: none;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 14px;
+  border-radius: var(--radius-md);
+  background: var(--danger-100);
+  color: var(--danger-600);
+  font-size: 13.5px;
+  margin-bottom: 18px;
+  line-height: 1.45;
+}
+.form-alert.is-visible { display: flex; }
+
+.login-footnote {
+  margin-top: 22px;
+  width: 100%;
+  max-width: 380px;
+  line-height: 1.55;
+  font-size: 12.5px;
+  color: var(--ink-300);
+  text-align: center;
+}
+
+@media (max-width: 860px) {
+  .login-shell { grid-template-columns: 1fr; }
+  .login-visual { display: none; }
+}
+
+@media (max-width: 480px) {
+  .login-panel { padding: 24px 20px; }
+  .login-card h2 { font-size: 20px; }
+}
+

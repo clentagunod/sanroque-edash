@@ -6,6 +6,7 @@ import { paginationPageNumbers } from './app-config';
 import { getSelectedSchoolYear, initYearSwitcher } from './school-year';
 import { debounce } from './learner-list';
 import { isTeacher } from './app-config';
+import { normalizeProfileCategory, renderProfileDistributionCharts, RMA_CATEGORIES } from './profile-charts';
 
 export let mathProfiles = [];
 export let mathPage = 1;
@@ -18,6 +19,8 @@ export async function initMathProfiles() {
   const gradeFilter = document.getElementById("mathGradeFilter");
   if (isTeacher()) gradeFilter?.remove();
   ["mathPeriodFilter", "mathSexFilter", "mathStatusFilter", "mathGradeFilter"].forEach((id) => document.getElementById(id)?.addEventListener("change", () => { mathPage = 1; renderFilteredMath(); }));
+  document.getElementById("mathChartPeriod")?.addEventListener("change", renderFilteredMath);
+  document.getElementById("mathChartView")?.addEventListener("change", renderFilteredMath);
   document.getElementById("mathSearch")?.addEventListener("input", debounce((event) => { mathSearch = event.target.value.trim().toLowerCase(); mathPage = 1; renderFilteredMath(); }, 200));
   await initYearSwitcher(loadMathProfiles);
 }
@@ -46,10 +49,22 @@ export function renderFilteredMath() {
   const sex = document.getElementById("mathSexFilter")?.value || "";
   const status = document.getElementById("mathStatusFilter")?.value || "";
   const grade = document.getElementById("mathGradeFilter")?.value || "";
-  const records = mathProfiles.filter((record) => { const text = `${record.name || ""} ${record.learnerId || ""} ${record.gradeLevel || ""}`.toLowerCase(); return (!mathSearch || text.includes(mathSearch)) && (!grade || record.gradeLevel === grade) && (!sex || record.gender === sex) && (!period || record[period]) && (!status || record[period] === status); });
+  const chartCohort = mathProfiles.filter((record) => { const text = `${record.name || ""} ${record.learnerId || ""} ${record.gradeLevel || ""}`.toLowerCase(); return (!mathSearch || text.includes(mathSearch)) && (!sex || record.gender === sex); });
+  const cohort = chartCohort.filter((record) => !grade || record.gradeLevel === grade);
+  const records = cohort.filter((record) => (!period || record[period]) && (!status || normalizeProfileCategory(record[period]) === normalizeProfileCategory(status)));
+  renderMathCharts(chartCohort);
   renderMathSummary(records);
   renderMathTable(records.slice((mathPage - 1) * MATH_PAGE_SIZE, mathPage * MATH_PAGE_SIZE));
   renderProfilePagination("math", records.length, mathPage, (page) => { mathPage = page; renderFilteredMath(); });
+}
+
+export function renderMathCharts(records = mathProfiles) {
+  const period = document.getElementById("mathChartPeriod")?.value || "bosy";
+  const view = document.getElementById("mathChartView")?.value || "grade";
+  const chartPeriod = view === "summary" ? "summary" : period;
+  const periodControl = document.getElementById("mathChartPeriod");
+  if (periodControl) periodControl.disabled = view === "summary";
+  renderProfileDistributionCharts("mathProfileCharts", records, "RMA (Grades 1-6)", RMA_CATEGORIES, ["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6"], chartPeriod);
 }
 
 export function renderProfilePagination(prefix, total, page, onPageChange) {

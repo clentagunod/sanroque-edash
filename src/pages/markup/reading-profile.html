@@ -16,6 +16,11 @@
         <select class="select-filter" id="readingStatusFilter"><option value="">All Reading Classifications</option></select>
       </div>
       <div class="stat-pill-row" id="readingSummary"></div>
+      <div class="profile-period-control"><label for="readingChartView">Chart view</label><select class="select-filter" id="readingChartView"><option value="grade">By Grade</option><option value="summary">Summary</option></select><label for="readingChartPeriod">Assessment period</label><select class="select-filter" id="readingChartPeriod"><option value="bosy">BOSY</option><option value="mosy">MOSY</option><option value="eosy">EOSY</option></select></div>
+      <div class="profile-chart-container">
+        <div id="readingProfileCharts"></div>
+        <div id="readingProfileChartsPhilIri"></div>
+      </div>
       <section class="panel">
         <div class="panel-header"><h3>BOSY, MOSY, and EOSY Reading Profile</h3></div>
         <div style="overflow-x:auto;"><table class="data-table reading-profile-table" style="min-width:950px;"><thead><tr><th>Name</th><th>Grade</th><th>Gender</th><th>BOSY<br><small>Reference / Level</small></th><th>MOSY<br><small>Reference / Level</small></th><th>EOSY<br><small>Reference / Level</small></th><th>Change</th></tr></thead><tbody id="readingTableBody"><tr><td colspan="7" class="state-row">Loading reading profiles...</td></tr></tbody></table></div>

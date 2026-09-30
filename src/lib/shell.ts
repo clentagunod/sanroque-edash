@@ -335,7 +335,7 @@ export function renderShell(activeKey, pageTitleForMobile) {
   if (!mainArea.querySelector(".site-footer")) {
     const footer = document.createElement("footer");
     footer.className = "site-footer app-site-footer";
-    footer.innerHTML = '<p>© 2026 San Roque Elementary School · Courtesy of <a href="https://github.com/clentagunod" target="_blank" rel="noopener noreferrer">ClentIndustries</a></p>';
+    footer.innerHTML = '<p>© 2026 San Roque Elementary School · Courtesy of <a href="https://clentindustries.vercel.app/" target="_blank" rel="noopener noreferrer">ClentIndustries</a></p>';
     mainArea.appendChild(footer);
   }
 

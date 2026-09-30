@@ -194,7 +194,7 @@ export default function ParentPortalPage() {
           </section>
         )}
       </div>
-      <footer className="parent-portal-footer">© 2026 San Roque Elementary School · Courtesy of <a href="https://github.com/clentagunod" target="_blank" rel="noopener noreferrer">ClentIndustries</a></footer>
+      <footer className="parent-portal-footer">© 2026 San Roque Elementary School · Courtesy of <a href="https://clentindustries.vercel.app/" target="_blank" rel="noopener noreferrer">ClentIndustries</a></footer>
       </main>
       <TestModeStamp />
     </>

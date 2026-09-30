@@ -89,7 +89,7 @@ export default function MaintenancePage() {
           <span />
         </div>
         <div className="maintenance-footer">
-          <span>Thanks for your patience from <a href="https://github.com/clentagunod"><strong>ClentIndustries</strong></a></span>
+          <span>Thanks for your patience from <a href="https://clentindustries.vercel.app/"><strong>ClentIndustries</strong></a></span>
           <span className="maintenance-sparkle" aria-hidden="true">✦</span>
         </div>
       </section>

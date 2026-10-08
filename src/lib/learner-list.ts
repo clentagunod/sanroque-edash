@@ -6,6 +6,7 @@ import { canManageLearners, confirmDiscardChanges, formSnapshot, isTeacher, isVi
 import { escapeHtml, formatAppDate, programBadges, renderShell, showToast } from './shell';
 import { DEMO_LEARNERS, isSheetsApiConfigured } from './demo-data';
 import { fsAddLearner, fsDeleteLearner, fsDeleteLearners, fsGetLearner, fsGetLearnerPage, fsSubscribeLearners } from './firestore-api';
+import { PHIL_IRI_CATEGORIES } from './profile-charts';
 
 /**
  * ============================================================================
@@ -592,6 +593,8 @@ export function wireModal() {
     genderInput.required = true;
     genderInput.setAttribute("aria-required", "true");
   }
+  const middleNameInput = document.getElementById("f_middleName");
+  if (middleNameInput) middleNameInput.required = false;
   ["f_firstName", "f_middleName", "f_lastName", "f_guardian"].forEach((id) => {
     document.getElementById(id)?.addEventListener("blur", (event) => { event.target.value = sentenceCaseName(event.target.value); });
   });
@@ -996,7 +999,7 @@ export function ensureIdentityInputs() {
   const firstName = document.getElementById("f_firstName")?.closest(".field");
   const lastName = document.getElementById("f_lastName")?.closest(".field");
   if (!firstName || !lastName) return;
-  firstName.insertAdjacentHTML("afterend", `<div class="field"><label for="f_middleName">Middle name</label><input id="f_middleName" /></div>`);
+  firstName.insertAdjacentHTML("afterend", `<div class="field"><label for="f_middleName">Middle name (optional)</label><input id="f_middleName" /></div>`);
   lastName.insertAdjacentHTML("afterend", `<div class="field"><label for="f_birthDate">Birthdate</label><input id="f_birthDate" type="date" /><small class="field-hint">Age is calculated automatically.</small></div><div class="field"><label for="f_age">Age</label><input id="f_age" type="number" readonly tabindex="-1" placeholder="Automatic" /></div>`);
 }
 
@@ -1024,7 +1027,7 @@ export function ensureReadingInputs() {
   const formGrid = document.querySelector("#learnerForm .field-grid");
   if (!formGrid) return;
   const crlaOptions = `<option value="">Level</option><option>Grade Ready</option><option>Transitioning</option><option>Developing</option><option>High Emerging</option><option>Low Emerging</option>`;
-  const philIriOptions = `<option value="">Level</option><option>Independent</option><option>Instructional</option><option>Frustration</option>`;
+  const philIriOptions = `<option value="">Level</option>${PHIL_IRI_CATEGORIES.map(({ label }) => `<option>${label}</option>`).join("")}`;
   formGrid.insertAdjacentHTML("beforeend", `<div class="field span-2 reading-input-group"><label>Reading profile <small id="readingReferenceHint">Select a grade to show the appropriate reference</small></label><div class="reading-reference" id="crlaReadingFields"><strong>CRLA</strong><div class="reading-inputs"><label>BOSY<select id="f_bosyCRLA">${crlaOptions}</select></label><label>MOSY<select id="f_mosyCRLA">${crlaOptions}</select></label><label>EOSY<select id="f_eosyCRLA">${crlaOptions}</select></label></div></div><div class="reading-reference" id="philIriReadingFields"><strong>Phil-IRI</strong><div class="reading-inputs"><label>BOSY<select id="f_bosyPhilIRI">${philIriOptions}</select></label><label>MOSY<select id="f_mosyPhilIRI">${philIriOptions}</select></label><label>EOSY<select id="f_eosyPhilIRI">${philIriOptions}</select></label></div></div></div>`);
 }
 

@@ -82,19 +82,6 @@ export function initLoginPage() {
 
   refreshLoginStatsFromStats();
   const statsInterval = window.setInterval(() => refreshLoginStatsFromStats(), 30000);
-  let loginStatsUnsubscribe = null;
-  void import('./firestore-api').then(({ fsSubscribePublicStats }) => {
-    if (typeof fsSubscribePublicStats === "function") {
-      loginStatsUnsubscribe = fsSubscribePublicStats((stats) => {
-        if (stats) refreshLoginStatsFromStats(stats);
-      }, () => {
-        refreshLoginStatsFromStats();
-      });
-    }
-  }).catch(() => {
-    // Firestore is optional during a fresh page load; the fallback poller above
-    // already keeps the summary refreshed at a slower cadence.
-  });
 
   // If already signed in, skip straight to the dashboard.
   if (isVisitorSession()) {
@@ -178,7 +165,6 @@ export function initLoginPage() {
   return () => {
     disposed = true;
     window.clearInterval(statsInterval);
-    if (typeof loginStatsUnsubscribe === "function") loginStatsUnsubscribe();
     unsubscribeAuth();
     form.removeEventListener("submit", onSubmit);
   };

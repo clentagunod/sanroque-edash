@@ -16,6 +16,7 @@ export const PHIL_IRI_CATEGORIES = [
   { label: 'Independent', color: '#2f6fed' },
   { label: 'Instructional', color: '#d69425' },
   { label: 'Frustration', color: '#d65f4c' },
+  { label: 'Non-Reader', color: '#56845a' },
 ];
 
 export const RMA_CATEGORIES = [

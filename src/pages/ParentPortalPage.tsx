@@ -1,6 +1,6 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import { auth, getPublicStats } from '../lib/firebase';
-import { fsGetLearner } from '../lib/firestore-api';
+import { fsSubscribeParentLearner } from '../lib/firestore-api';
 import { Icon } from '../lib/icons';
 import '../styles/pages/parent-portal.css';
 import TestModeStamp from '../components/TestModeStamp';
@@ -63,6 +63,8 @@ function DetailSection({ title, fields, learner, hidden = false }: { title: stri
 }
 
 export default function ParentPortalPage() {
+  const activeParentLookup = useRef<(() => void) | null>(null);
+  const parentLookupRequestId = useRef(0);
   const [learnerId, setLearnerId] = useState('');
   const [learner, setLearner] = useState<Learner | null>(null);
   const [message, setMessage] = useState('');
@@ -83,6 +85,8 @@ export default function ParentPortalPage() {
     document.body.classList.remove('dark-mode');
     getPublicStats().then((stats) => setSchoolYear(String(stats?.schoolYear || ''))).catch(() => {});
     return () => {
+      parentLookupRequestId.current += 1;
+      activeParentLookup.current?.();
       document.body.classList.toggle('dark-mode', hadStaffDarkMode);
     };
   }, []);
@@ -97,6 +101,9 @@ export default function ParentPortalPage() {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    const requestId = ++parentLookupRequestId.current;
+    activeParentLookup.current?.();
+    activeParentLookup.current = null;
     const normalizedId = learnerId.trim();
     setLearner(null);
     setShowGrades(false);
@@ -114,15 +121,30 @@ export default function ParentPortalPage() {
       if (!auth.currentUser) {
         await auth.signInAnonymously();
       }
-      const result = await fsGetLearner(normalizedId, schoolYear);
-      if (!result) setMessage('No active learner record was found for that LRN. Check the number and try again.');
-      else setLearner(result);
+      if (requestId !== parentLookupRequestId.current) return;
+      activeParentLookup.current = fsSubscribeParentLearner(
+        normalizedId,
+        schoolYear,
+        (result) => {
+          if (requestId !== parentLookupRequestId.current) return;
+          setLoading(false);
+          if (!result) setMessage('No active learner record was found for that LRN. Check the number and try again.');
+          else setLearner(result);
+        },
+        (error) => {
+          if (requestId !== parentLookupRequestId.current) return;
+          setLoading(false);
+          setMessage(error?.code === 'permission-denied'
+            ? 'This lookup is not available yet. Please contact the school office.'
+            : 'We could not complete the lookup. Please try again.');
+        },
+      );
     } catch (error: any) {
+      if (requestId !== parentLookupRequestId.current) return;
+      setLoading(false);
       setMessage(error?.code === 'permission-denied'
         ? 'This lookup is not available yet. Please contact the school office.'
         : 'We could not complete the lookup. Please try again.');
-    } finally {
-      setLoading(false);
     }
   }
 

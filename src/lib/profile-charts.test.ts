@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildProfileGradeDistribution, buildProfileSummaryDistribution, CRLA_CATEGORIES, renderProfileDistributionCharts, RMA_CATEGORIES } from './profile-charts';
+import { buildProfileGradeDistribution, buildProfileSummaryDistribution, CRLA_CATEGORIES, PHIL_IRI_CATEGORIES, renderProfileDistributionCharts, RMA_CATEGORIES } from './profile-charts';
 
 describe('profile chart distributions', () => {
   it('calculates selected-period category counts and shares by grade', () => {
@@ -26,6 +26,16 @@ describe('profile chart distributions', () => {
 
     expect(highProficient?.counts['Grade 1']).toBe(2);
     expect(highProficient?.percentages['Grade 1']).toBe(100);
+  });
+
+  it('counts Non-Reader in the Phil-IRI distribution', () => {
+    const distribution = buildProfileGradeDistribution([
+      { gradeLevel: 'Grade 4', bosy: 'Non-Reader' },
+    ], PHIL_IRI_CATEGORIES, 'bosy', ['Grade 4']);
+    const nonReader = distribution.categories.find(({ label }) => label === 'Non-Reader');
+
+    expect(nonReader?.counts['Grade 4']).toBe(1);
+    expect(nonReader?.percentages['Grade 4']).toBe(100);
   });
 
   it('aggregates summary counts across all grades for each assessment period', () => {

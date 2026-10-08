@@ -17,7 +17,7 @@ export function readingClassificationOptions(grade = "") {
   const isCrla = /^Grade [1-3]$/.test(String(grade || ""));
   return isCrla
     ? ["Grade Ready", "Transitioning", "Developing", "High Emerging", "Low Emerging"]
-    : ["Independent", "Instructional", "Frustration"];
+    : PHIL_IRI_CATEGORIES.map(({ label }) => label);
 }
 
 export function updateReadingClassificationOptions() {

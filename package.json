@@ -12,6 +12,7 @@
     "firestore:bootstrap": "node scripts/provision-firestore-empty.mjs"
   },
   "dependencies": {
+    "firebase-admin": "^13.10.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.2"
@@ -19,7 +20,6 @@
   "devDependencies": {
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
-    "firebase-admin": "^13.5.0",
     "@vitejs/plugin-react": "^4.3.1",
     "jsdom": "^24.1.0",
     "typescript": "^5.5.4",

@@ -32,6 +32,7 @@ src/
   pages/                   React page wrappers and raw page markup
   lib/                     Auth, Firestore, reports, forms, exports, and utilities
   styles/                  Shared tokens, shell styles, responsive styles, and page styles
+api/                       Vercel functions, including CDN-cached public statistics
 public/assets/             School logo, school image, and other static assets
 apps-script/
   AuditLog.gs              Authenticated audit-log and admin Auth service
@@ -99,6 +100,6 @@ npm run preview          # Preview the production build locally
 
 ## Deployment
 
-Build the site and deploy the generated `dist/` directory using the provider of your choice. Firebase Hosting is already configured through [firebase.json](firebase.json), including the rewrite that sends application routes to `index.html`.
+Build the site and deploy the generated `dist/` directory. Vercel additionally deploys the `api/` functions; the visitor dashboard uses its CDN-cached public-statistics endpoint. Configure the server-only `FIREBASE_SERVICE_ACCOUNT` variable before deploying that endpoint. Firebase Hosting is configured through [firebase.json](firebase.json), including the rewrite that sends application routes to `index.html`; it does not run Vercel functions.
 
 See [SETUP_GUIDE.md](SETUP_GUIDE.md) for the complete first-time setup and deployment process.

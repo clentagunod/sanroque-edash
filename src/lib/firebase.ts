@@ -86,8 +86,13 @@ db.enablePersistence({ synchronizeTabs: true }).catch((error) => {
 // resolves to `null` instead of throwing, so callers can render zero values.
 export function getPublicStats() {
 	const load = async () => {
+		if (!import.meta.env.DEV) {
+		  const response = await fetch("/api/public-stats", { headers: { Accept: "application/json" } });
+		  if (!response.ok) throw new Error(`Public statistics request failed (${response.status}).`);
+		  return response.json();
+		}
 		const snapshot = await db.collection("publicStats").doc("summary").get();
 		return snapshot.exists ? snapshot.data() : null;
 	};
-	return LPSCache.getOrLoad("firestore_public_stats", load, 300000, 3600000);
+	return LPSCache.getOrLoad("firestore_public_stats", load, 60000, 300000);
 }

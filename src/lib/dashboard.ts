@@ -28,16 +28,9 @@ export async function initDashboard() {
     if (learnerPanel) learnerPanel.style.display = "none";
     if (typeof fsSubscribePublicStats === "function") {
       dashboardPublicStatsUnsubscribe?.();
-      // A missing `publicStats/summary` doc (a brand-new school year, or one
-      // that currently has zero learners) is a normal empty state, not a
-      // failure — show zero-value stat cards instead of an error banner.
       getDashboardPublicStats()
         .then((stats) => renderVisitorDashboardSummary(stats || visitorFallbackSummary()))
         .catch((error) => showDashboardDataError("current school year", error));
-      dashboardPublicStatsUnsubscribe = fsSubscribePublicStats(
-        (stats) => renderVisitorDashboardSummary(stats || visitorFallbackSummary()),
-        (error) => showDashboardDataError("current school year", error)
-      );
       return;
     }
   }
@@ -118,7 +111,8 @@ export function renderVisitorDashboardSummary(summary) {
   renderBarChart(summary);
   renderProgramSummary(summary);
   const lastSynced = document.getElementById("lastSynced");
-  if (lastSynced) lastSynced.textContent = summary.updatedAt?.toDate ? `Updated ${summary.updatedAt.toDate().toLocaleString()}` : "Live from Firestore";
+  const updatedAt = summary.updatedAt?.toDate ? summary.updatedAt.toDate() : summary.updatedAt ? new Date(summary.updatedAt) : null;
+  if (lastSynced) lastSynced.textContent = updatedAt && !Number.isNaN(updatedAt.getTime()) ? `Updated ${updatedAt.toLocaleString()}` : "Cached public summary";
 }
 
 /** Renders an all-zero dashboard so the page never gets stuck showing its

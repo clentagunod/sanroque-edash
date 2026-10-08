@@ -19,6 +19,7 @@ const mockAuthNamespace = {
 const mockDb = {
   enablePersistence: vi.fn().mockResolvedValue(undefined),
   collection: vi.fn(() => ({ doc: vi.fn(() => ({ get: vi.fn() })) })),
+  runTransaction: vi.fn().mockResolvedValue('updated'),
 };
 
 vi.stubGlobal('firebase', {

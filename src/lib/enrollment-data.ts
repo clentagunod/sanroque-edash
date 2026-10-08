@@ -4,7 +4,7 @@ import { LPSApi } from './sheets-api';
 import { requireAuth } from './auth';
 import { canManageLearners, isTeacher, isVisitorSession, storedAppProfile, teacherAssignmentsForProfile } from './app-config';
 import { getSelectedSchoolYear, initYearSwitcher, setSelectedSchoolYear } from './school-year';
-import { fsSubscribeLearners, fsSubscribePublicStats, fsSyncEnrollmentData } from './firestore-api';
+import { fsSubscribeLearners, fsSyncEnrollmentData } from './firestore-api';
 
 export let enrollmentRequestId = 0;
 export let visitorEnrollmentUnsubscribe = null;
@@ -26,7 +26,7 @@ export function initEnrollmentData() {
   const syncButton = document.getElementById("syncEnrollmentBtn");
     if (syncButton && !canManageLearners()) syncButton.remove();
     if (syncButton && typeof fsSyncEnrollmentData === "function") syncButton.textContent = "Refresh counts";
-    if (isVisitorSession() && typeof fsSubscribePublicStats === "function") {
+    if (isVisitorSession()) {
       const renderVisitorSummary = (stats) => {
         if (!stats) {
           showVisitorEnrollmentError("Visitor statistics are not initialized yet. Ask a School Admin to open Admin Console once.");
@@ -59,9 +59,7 @@ export function initEnrollmentData() {
 
       void loadVisitorSummaryOnce();
       visitorEnrollmentUnsubscribe?.();
-      visitorEnrollmentUnsubscribe = fsSubscribePublicStats((stats) => {
-        renderVisitorSummary(stats);
-      }, (error) => showVisitorEnrollmentError(error.message));
+      visitorEnrollmentUnsubscribe = null;
       initYearSwitcher(() => {});
       return;
     }

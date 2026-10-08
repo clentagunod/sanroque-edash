@@ -20,6 +20,7 @@ import { SHEETS_API_URL, auth, authPersistenceReady } from './firebase';
  */
 
 export const REQUEST_TIMEOUT_MS = 15000;
+export const AUDIT_LOG_REQUEST_TIMEOUT_MS = 60000;
 export const CLIENT_CACHE_TTL_MS = 60000;
 export const LEARNER_CACHE_TTL_MS = 30000;
 export const LEARNER_STALE_CACHE_MS = 300000;
@@ -33,9 +34,9 @@ export function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function fetchOnce(url, options) {
+export async function fetchOnce(url, options, timeoutMs = REQUEST_TIMEOUT_MS) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   if (typeof beginNetworkLoading === "function") beginNetworkLoading();
   try {
     return await fetch(url, { ...options, signal: controller.signal });
@@ -62,13 +63,13 @@ export async function fetchOnce(url, options) {
  * a duplicate row. Writes get exactly one attempt; the user sees the error
  * and can safely retry manually after checking the sheet.
  */
-export async function fetchWithTimeout(url, options) {
+export async function fetchWithTimeout(url, options, timeoutMs = REQUEST_TIMEOUT_MS) {
   const retriesAllowed = !options || options.method === "GET";
   const attempts = retriesAllowed ? RETRY_ATTEMPTS : 0;
   let lastError;
   for (let attempt = 0; attempt <= attempts; attempt++) {
     try {
-      const res = await fetchOnce(url, options);
+      const res = await fetchOnce(url, options, timeoutMs);
       if (res.ok || !RETRIABLE_STATUS.has(res.status) || attempt === attempts) {
         return res;
       }
@@ -264,7 +265,11 @@ export const LPSApi = (() => {
       const url = new URL(APP_CONFIG.auditLogApiUrl);
       url.searchParams.set("action", "getAuditLogs");
       url.searchParams.set("token", token);
-      return parseResponse(await fetchWithTimeout(url.toString(), { method: "GET", redirect: "follow" }));
+      return parseResponse(await fetchWithTimeout(
+        url.toString(),
+        { method: "GET", redirect: "follow" },
+        AUDIT_LOG_REQUEST_TIMEOUT_MS,
+      ));
     },
     getFirestoreUsage: async () => {
       const token = await authHeaderToken();

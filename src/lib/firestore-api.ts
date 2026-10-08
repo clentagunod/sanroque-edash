@@ -1042,12 +1042,14 @@ export async function fsGetTransferRecords(schoolYear, type = "all", gradeLevel 
       ? Promise.all(assignments.map((assignment) => fsLearnersCollection_(schoolYear)
           .where("gradeLevel", "==", assignment.gradeLevel)
           .where("section", "==", assignment.section)
-          .get())).then((snapshots) => snapshots.flatMap((snapshot) => snapshot.docs))
+          .get())).then((snapshots) => snapshots.flatMap((snapshot) =>
+        snapshot.docs.map((doc) => ({ learnerId: doc.id, ...doc.data() }))
+      ))
       : fsLearnersCollection_(schoolYear).get().then((snapshot) => snapshot.docs.map((doc) => ({ learnerId: doc.id, ...doc.data() }))),
     fsArchiveCollection_("transferredOut", schoolYear).get(),
   ]);
   const learners = [
-    ...activeSnapshot.map((doc) => ({ learnerId: doc.id, schoolYear, ...doc.data() })),
+    ...activeSnapshot.map((learner) => ({ ...learner, schoolYear })),
     ...archivedSnapshot.docs.map((doc) => ({ learnerId: doc.id, schoolYear, ...doc.data() })),
   ];
   const scopedLearners = assignments.length

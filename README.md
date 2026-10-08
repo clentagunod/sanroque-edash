@@ -60,7 +60,7 @@ settings/{settingId}
 publicStats/summary
 ```
 
-The public statistics document contains aggregate information only. Visitor mode does not read private learner records.
+The public statistics document contains aggregate information only. The read-only parent portal uses Firebase Anonymous Authentication for individual learner lookups; its anonymous session is retained by Firebase in that browser instead of being signed out whenever the portal closes. This avoids creating a new anonymous account each time the portal is reopened. An LRN alone is not a secure identity check, so learner records must not be made publicly readable.
 
 ## Roles
 

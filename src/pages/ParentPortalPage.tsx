@@ -84,7 +84,6 @@ export default function ParentPortalPage() {
     getPublicStats().then((stats) => setSchoolYear(String(stats?.schoolYear || ''))).catch(() => {});
     return () => {
       document.body.classList.toggle('dark-mode', hadStaffDarkMode);
-      if (auth.currentUser?.isAnonymous) void auth.signOut();
     };
   }, []);
 

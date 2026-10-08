@@ -1,3 +1,4 @@
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockAuth = {
@@ -125,9 +126,9 @@ describe('visitor session handling', () => {
       schoolYear: '2026-2027',
       updatedAt: { toDate: () => new Date('2026-09-13T00:00:00Z') },
     });
-    vi.spyOn(firestoreApi, 'fsSubscribeLearners').mockReturnValue(() => {});
-    vi.spyOn(firestoreApi, 'fsSubscribePublicStats').mockReturnValue(() => {});
-    vi.spyOn(firestoreApi, 'fsSubscribeRecentLearners').mockReturnValue(() => {});
+    vi.spyOn(firestoreApi, 'fsSubscribeLearners').mockReturnValue(() => { });
+    vi.spyOn(firestoreApi, 'fsSubscribePublicStats').mockReturnValue(() => { });
+    vi.spyOn(firestoreApi, 'fsSubscribeRecentLearners').mockReturnValue(() => { });
     LPSApi.getDashboardSummary = vi.fn().mockRejectedValue(new Error('stalled'));
 
     await loadDashboardData('2026-2027');
@@ -279,127 +280,127 @@ describe('visitor session handling', () => {
     const assignments = fsTeacherAssignments_();
 
     expect(assignments).toHaveLength(2);
-describe('teacher advisory-index independence (firestore)', () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-    sessionStorage.clear();
-    localStorage.clear();
-  });
+    describe('teacher advisory-index independence (firestore)', () => {
+      beforeEach(() => {
+        vi.restoreAllMocks();
+        sessionStorage.clear();
+        localStorage.clear();
+      });
 
-  it('keeps the advisory learners index out of a teacher learner write path', async () => {
-    sessionStorage.setItem('lps_user_profile', JSON.stringify({
-      email: 'teacher@test.edu',
-      uid: 'teacher-1',
-      name: 'Jane Teacher',
-      role: 'Teacher',
-      teacherAssignments: [{ schoolYear: '2026-2027', gradeLevel: 'Grade 1', section: 'A' }],
-    }));
+      it('keeps the advisory learners index out of a teacher learner write path', async () => {
+        sessionStorage.setItem('lps_user_profile', JSON.stringify({
+          email: 'teacher@test.edu',
+          uid: 'teacher-1',
+          name: 'Jane Teacher',
+          role: 'Teacher',
+          teacherAssignments: [{ schoolYear: '2026-2027', gradeLevel: 'Grade 1', section: 'A' }],
+        }));
 
-    const { fsAdvisoryIndexWriteEnabled_, fsSyncAdvisoryLearner_ } = await import('./firestore-api');
-    const { db } = await import('./firebase');
-    const collectionNames = [];
-    vi.spyOn(db, 'collection').mockImplementation((name) => {
-      collectionNames.push(name);
-      return { doc: vi.fn(() => ({ get: vi.fn().mockResolvedValue({ exists: false }) })) };
+        const { fsAdvisoryIndexWriteEnabled_, fsSyncAdvisoryLearner_ } = await import('./firestore-api');
+        const { db } = await import('./firebase');
+        const collectionNames = [];
+        vi.spyOn(db, 'collection').mockImplementation((name) => {
+          collectionNames.push(name);
+          return { doc: vi.fn(() => ({ get: vi.fn().mockResolvedValue({ exists: false }) })) };
+        });
+
+        // The teacher never maintains the derived index...
+        expect(fsAdvisoryIndexWriteEnabled_()).toBe(false);
+        // ...so the advisory sync short-circuits, never throws, and never reads/writes advisory.
+        await expect(fsSyncAdvisoryLearner_('2026-2027', { learnerId: '123456789012', gradeLevel: 'Grade 1', section: 'A' })).resolves.toBeUndefined();
+        expect(collectionNames).not.toContain('advisory');
+      });
+
+      it('lets non-teacher users keep maintaining the advisory learners index', async () => {
+        sessionStorage.setItem('lps_user_profile', JSON.stringify({
+          email: 'admin@school.test',
+          uid: 'admin-1',
+          name: 'School Admin',
+          role: 'School Admin',
+        }));
+
+        const { fsAdvisoryIndexWriteEnabled_ } = await import('./firestore-api');
+        expect(fsAdvisoryIndexWriteEnabled_()).toBe(true);
+      });
+
+      it('reads a teacher transfer list straight from Learners, never from advisory', async () => {
+        sessionStorage.setItem('lps_user_profile', JSON.stringify({
+          email: 'teacher@test.edu',
+          uid: 'teacher-1',
+          name: 'Jane Teacher',
+          role: 'Teacher',
+          teacherAssignments: [{ schoolYear: '2026-2027', gradeLevel: 'Grade 1', section: 'A' }],
+        }));
+
+        const firestoreApi = await import('./firestore-api');
+        const { db } = await import('./firebase');
+        const collectionNames = [];
+        const learnersQuery = {
+          where: vi.fn(() => ({
+            where: vi.fn(() => ({
+              get: vi.fn().mockResolvedValue({
+                docs: [{ id: 'lrn-0001', data: () => ({ learnerId: 'lrn-0001', gradeLevel: 'Grade 1', section: 'A', transferType: 'Transfer In', transferIn: true }) }],
+              }),
+            })),
+          })),
+        };
+        vi.spyOn(db, 'collection').mockImplementation((name) => {
+          collectionNames.push(name);
+          if (name === 'Learners') {
+            return { doc: vi.fn(() => ({ collection: vi.fn(() => learnersQuery) })) };
+          }
+          if (name === 'TransferredOut') {
+            return { doc: vi.fn(() => ({ collection: vi.fn(() => ({ get: vi.fn().mockResolvedValue({ docs: [] }) })) })) };
+          }
+          return { doc: vi.fn(() => ({ get: vi.fn().mockResolvedValue({ exists: false }), collection: vi.fn(() => ({ get: vi.fn().mockResolvedValue({ docs: [] }) })) })) };
+        });
+
+        const records = await firestoreApi.fsGetTransferRecords('2026-2027');
+        expect(collectionNames).not.toContain('advisory');
+        expect(collectionNames).toContain('Learners');
+        expect(collectionNames).toContain('TransferredOut');
+        expect(records.some((record) => record.learnerId === 'lrn-0001')).toBe(true);
+      });
+
+      it('reads a teacher drop-out list straight from Learners + Dropouts, never from advisory', async () => {
+        sessionStorage.setItem('lps_user_profile', JSON.stringify({
+          email: 'teacher@test.edu',
+          uid: 'teacher-1',
+          name: 'Jane Teacher',
+          role: 'Teacher',
+          teacherAssignments: [{ schoolYear: '2026-2027', gradeLevel: 'Grade 1', section: 'A' }],
+        }));
+
+        const firestoreApi = await import('./firestore-api');
+        const { db } = await import('./firebase');
+        const collectionNames = [];
+        const learnersQuery = {
+          where: vi.fn(() => ({
+            where: vi.fn(() => ({
+              get: vi.fn().mockResolvedValue({
+                docs: [{ id: 'lrn-0002', data: () => ({ learnerId: 'lrn-0002', gradeLevel: 'Grade 1', section: 'A', enrollmentStatus: 'DROPPED_OUT', eosyStatus: 'Dropped Out' }) }],
+              }),
+            })),
+          })),
+        };
+        vi.spyOn(db, 'collection').mockImplementation((name) => {
+          collectionNames.push(name);
+          if (name === 'Learners') {
+            return { doc: vi.fn(() => ({ collection: vi.fn(() => learnersQuery) })) };
+          }
+          if (name === 'Dropouts') {
+            return { doc: vi.fn(() => ({ collection: vi.fn(() => ({ get: vi.fn().mockResolvedValue({ docs: [] }) })) })) };
+          }
+          return { doc: vi.fn(() => ({ get: vi.fn().mockResolvedValue({ exists: false }), collection: vi.fn(() => ({ get: vi.fn().mockResolvedValue({ docs: [] }) })) })) };
+        });
+
+        const records = await firestoreApi.fsGetArchiveRecords('dropout', '2026-2027');
+        expect(collectionNames).not.toContain('advisory');
+        expect(collectionNames).toContain('Learners');
+        expect(collectionNames).toContain('Dropouts');
+        expect(records.some((record) => record.learnerId === 'lrn-0002')).toBe(true);
+      });
     });
-
-    // The teacher never maintains the derived index...
-    expect(fsAdvisoryIndexWriteEnabled_()).toBe(false);
-    // ...so the advisory sync short-circuits, never throws, and never reads/writes advisory.
-    await expect(fsSyncAdvisoryLearner_('2026-2027', { learnerId: '123456789012', gradeLevel: 'Grade 1', section: 'A' })).resolves.toBeUndefined();
-    expect(collectionNames).not.toContain('advisory');
-  });
-
-  it('lets non-teacher users keep maintaining the advisory learners index', async () => {
-    sessionStorage.setItem('lps_user_profile', JSON.stringify({
-      email: 'admin@school.test',
-      uid: 'admin-1',
-      name: 'School Admin',
-      role: 'School Admin',
-    }));
-
-    const { fsAdvisoryIndexWriteEnabled_ } = await import('./firestore-api');
-    expect(fsAdvisoryIndexWriteEnabled_()).toBe(true);
-  });
-
-  it('reads a teacher transfer list straight from Learners, never from advisory', async () => {
-    sessionStorage.setItem('lps_user_profile', JSON.stringify({
-      email: 'teacher@test.edu',
-      uid: 'teacher-1',
-      name: 'Jane Teacher',
-      role: 'Teacher',
-      teacherAssignments: [{ schoolYear: '2026-2027', gradeLevel: 'Grade 1', section: 'A' }],
-    }));
-
-    const firestoreApi = await import('./firestore-api');
-    const { db } = await import('./firebase');
-    const collectionNames = [];
-    const learnersQuery = {
-      where: vi.fn(() => ({
-        where: vi.fn(() => ({
-          get: vi.fn().mockResolvedValue({
-            docs: [{ id: 'lrn-0001', data: () => ({ learnerId: 'lrn-0001', gradeLevel: 'Grade 1', section: 'A', transferType: 'Transfer In', transferIn: true }) }],
-          }),
-        })),
-      })),
-    };
-    vi.spyOn(db, 'collection').mockImplementation((name) => {
-      collectionNames.push(name);
-      if (name === 'Learners') {
-        return { doc: vi.fn(() => ({ collection: vi.fn(() => learnersQuery) })) };
-      }
-      if (name === 'TransferredOut') {
-        return { doc: vi.fn(() => ({ collection: vi.fn(() => ({ get: vi.fn().mockResolvedValue({ docs: [] }) })) })) };
-      }
-      return { doc: vi.fn(() => ({ get: vi.fn().mockResolvedValue({ exists: false }), collection: vi.fn(() => ({ get: vi.fn().mockResolvedValue({ docs: [] }) })) })) };
-    });
-
-    const records = await firestoreApi.fsGetTransferRecords('2026-2027');
-    expect(collectionNames).not.toContain('advisory');
-    expect(collectionNames).toContain('Learners');
-    expect(collectionNames).toContain('TransferredOut');
-    expect(records.some((record) => record.learnerId === 'lrn-0001')).toBe(true);
-  });
-
-  it('reads a teacher drop-out list straight from Learners + Dropouts, never from advisory', async () => {
-    sessionStorage.setItem('lps_user_profile', JSON.stringify({
-      email: 'teacher@test.edu',
-      uid: 'teacher-1',
-      name: 'Jane Teacher',
-      role: 'Teacher',
-      teacherAssignments: [{ schoolYear: '2026-2027', gradeLevel: 'Grade 1', section: 'A' }],
-    }));
-
-    const firestoreApi = await import('./firestore-api');
-    const { db } = await import('./firebase');
-    const collectionNames = [];
-    const learnersQuery = {
-      where: vi.fn(() => ({
-        where: vi.fn(() => ({
-          get: vi.fn().mockResolvedValue({
-            docs: [{ id: 'lrn-0002', data: () => ({ learnerId: 'lrn-0002', gradeLevel: 'Grade 1', section: 'A', enrollmentStatus: 'DROPPED_OUT', eosyStatus: 'Dropped Out' }) }],
-          }),
-        })),
-      })),
-    };
-    vi.spyOn(db, 'collection').mockImplementation((name) => {
-      collectionNames.push(name);
-      if (name === 'Learners') {
-        return { doc: vi.fn(() => ({ collection: vi.fn(() => learnersQuery) })) };
-      }
-      if (name === 'Dropouts') {
-        return { doc: vi.fn(() => ({ collection: vi.fn(() => ({ get: vi.fn().mockResolvedValue({ docs: [] }) })) })) };
-      }
-      return { doc: vi.fn(() => ({ get: vi.fn().mockResolvedValue({ exists: false }), collection: vi.fn(() => ({ get: vi.fn().mockResolvedValue({ docs: [] }) })) })) };
-    });
-
-    const records = await firestoreApi.fsGetArchiveRecords('dropout', '2026-2027');
-    expect(collectionNames).not.toContain('advisory');
-    expect(collectionNames).toContain('Learners');
-    expect(collectionNames).toContain('Dropouts');
-    expect(records.some((record) => record.learnerId === 'lrn-0002')).toBe(true);
-  });
-});
     expect(assignments.map((assignment) => `${assignment.gradeLevel}-${assignment.section}`)).toEqual(['Grade 1-A', 'Grade 5-B']);
     expect(assignments.every((assignment) => assignment.teacherKey)).toBe(true);
   });
@@ -682,7 +683,7 @@ describe('credential / role resolution', () => {
     mockAuth.currentUser = null;
     mockAuth.onAuthStateChanged.mockImplementation((callback) => {
       Promise.resolve().then(() => callback({ uid: 'retry-user-9', email: 'admin@school.test' }));
-      return () => {};
+      return () => { };
     });
     mockDb.collection.mockImplementation(() => ({
       doc: vi.fn(() => ({

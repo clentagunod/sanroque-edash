@@ -129,6 +129,8 @@ The application database does not require a Google Sheets URL. The current Fires
 
 `apps-script/AuditLog.gs` is a standalone Google Apps Script Web App. It stores controlled audit metadata in a Google Sheet and also provides the Firebase Auth account deletion endpoint used by the Admin Console.
 
+The Audit Log page displays up to the latest 500 entries. After changing `AuditLog.gs`, update the deployed Web App through **Deploy → Manage deployments** and deploy a new version so the optimized read takes effect.
+
 1. Create a Google Spreadsheet for audit records.
 2. Open **Extensions → Apps Script**.
 3. Copy the contents of `apps-script/AuditLog.gs` into the script project.
@@ -315,4 +317,3 @@ whole access model lives in one place:
 - The client-side scoping is a UX convenience only. The real boundary is
    `firestore.rules`; only active users with the `Teacher` role can use learner
    CRUD operations.
-

@@ -87,10 +87,9 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     // Login-page aggregate only. This document must never contain learner
-    // names, IDs, or other personally identifiable information. Public
-    // visitors read the sanitized aggregate through the cached Vercel API.
+    // names, IDs, or other personally identifiable information.
     match /publicStats/{statId} {
-      allow get: if isStaff() && statId == "summary";
+      allow get: if statId == "summary";
       allow list: if false;
       allow write: if isStaff() && statId == "summary";
     }

@@ -32,7 +32,6 @@ src/
   pages/                   React page wrappers and raw page markup
   lib/                     Auth, Firestore, reports, forms, exports, and utilities
   styles/                  Shared tokens, shell styles, responsive styles, and page styles
-api/                       Vercel functions, including CDN-cached public statistics
 public/assets/             School logo, school image, and other static assets
 apps-script/
   AuditLog.gs              Authenticated audit-log and admin Auth service
@@ -62,6 +61,8 @@ publicStats/summary
 ```
 
 The public statistics document contains aggregate information only. The read-only parent portal uses Firebase Anonymous Authentication for individual learner lookups; its anonymous session is retained by Firebase in that browser instead of being signed out whenever the portal closes. This avoids creating a new anonymous account each time the portal is reopened. An LRN alone is not a secure identity check, so learner records must not be made publicly readable.
+
+Public dashboard and enrollment summaries are cached in the current browser tab for 15 minutes and do not open a per-visitor realtime Firestore listener. A visible page keeps its rendered summary until it is reloaded or requests the summary again; after the cache expires, that next request reads Firestore. Parent lookups are cached in bounded memory only for 60 seconds, so repeating a lookup in the same page avoids another read without persisting learner details in browser storage. These browser caches are not shared between visitors or devices; use a shared server-side cache/CDN if cross-visitor read reduction is required.
 
 ## Roles
 
@@ -100,6 +101,6 @@ npm run preview          # Preview the production build locally
 
 ## Deployment
 
-Build the site and deploy the generated `dist/` directory. Vercel additionally deploys the `api/` functions; the visitor dashboard uses its CDN-cached public-statistics endpoint. Configure the server-only `FIREBASE_SERVICE_ACCOUNT` variable before deploying that endpoint. Firebase Hosting is configured through [firebase.json](firebase.json), including the rewrite that sends application routes to `index.html`; it does not run Vercel functions.
+Build the site and deploy the generated `dist/` directory using the provider of your choice. Firebase Hosting is already configured through [firebase.json](firebase.json), including the rewrite that sends application routes to `index.html`.
 
 See [SETUP_GUIDE.md](SETUP_GUIDE.md) for the complete first-time setup and deployment process.

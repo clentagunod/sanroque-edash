@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildProfileGradeDistribution, buildProfileSummaryDistribution, CRLA_CATEGORIES, renderProfileDistributionCharts, RMA_CATEGORIES } from './profile-charts';
+import { buildProfileGradeDistribution, buildProfileSummaryDistribution, CRLA_CATEGORIES, PHIL_IRI_CATEGORIES, renderProfileDistributionCharts, RMA_CATEGORIES } from './profile-charts';
 
 describe('profile chart distributions', () => {
   it('calculates selected-period category counts and shares by grade', () => {
@@ -39,6 +39,16 @@ describe('profile chart distributions', () => {
     expect(distribution.categories[0].counts).toEqual({ bosy: 2, mosy: 0, eosy: 0 });
     expect(distribution.categories[1].counts).toEqual({ bosy: 0, mosy: 1, eosy: 0 });
     expect(distribution.categories[2].counts).toEqual({ bosy: 0, mosy: 0, eosy: 2 });
+  });
+
+  it('counts Phil-IRI Non reader records across all assessment periods', () => {
+    const distribution = buildProfileSummaryDistribution([
+      { gradeLevel: 'Grade 4', bosy: 'Non reader', mosy: 'Independent', eosy: 'Non reader' },
+      { gradeLevel: 'Grade 5', bosy: 'Instructional', mosy: 'Non reader', eosy: 'Frustration' },
+    ], PHIL_IRI_CATEGORIES);
+    const nonReader = distribution.categories.find(({ label }) => label === 'Non reader');
+
+    expect(nonReader?.counts).toEqual({ bosy: 1, mosy: 1, eosy: 1 });
   });
 
   it('renders stacked bars and count trend lines by grade', () => {

@@ -26,13 +26,15 @@ export async function initDashboard() {
   if (isVisitorSession()) {
     const learnerPanel = document.querySelector("#recentTableBody")?.closest(".panel");
     if (learnerPanel) learnerPanel.style.display = "none";
-    if (typeof fsSubscribePublicStats === "function") {
-      dashboardPublicStatsUnsubscribe?.();
-      getDashboardPublicStats()
-        .then((stats) => renderVisitorDashboardSummary(stats || visitorFallbackSummary()))
-        .catch((error) => showDashboardDataError("current school year", error));
-      return;
-    }
+    dashboardPublicStatsUnsubscribe?.();
+    dashboardPublicStatsUnsubscribe = null;
+    // Public visitors use the cached aggregate instead of opening a Firestore
+    // listener per browser session. A subsequent page load refreshes it after
+    // the cache expires.
+    getDashboardPublicStats()
+      .then((stats) => renderVisitorDashboardSummary(stats || visitorFallbackSummary()))
+      .catch((error) => showDashboardDataError("current school year", error));
+    return;
   }
 
   // Safety net: if nothing has painted the stat cards a few seconds after
@@ -111,8 +113,7 @@ export function renderVisitorDashboardSummary(summary) {
   renderBarChart(summary);
   renderProgramSummary(summary);
   const lastSynced = document.getElementById("lastSynced");
-  const updatedAt = summary.updatedAt?.toDate ? summary.updatedAt.toDate() : summary.updatedAt ? new Date(summary.updatedAt) : null;
-  if (lastSynced) lastSynced.textContent = updatedAt && !Number.isNaN(updatedAt.getTime()) ? `Updated ${updatedAt.toLocaleString()}` : "Cached public summary";
+  if (lastSynced) lastSynced.textContent = summary.updatedAt?.toDate ? `Updated ${summary.updatedAt.toDate().toLocaleString()}` : "Live from Firestore";
 }
 
 /** Renders an all-zero dashboard so the page never gets stuck showing its

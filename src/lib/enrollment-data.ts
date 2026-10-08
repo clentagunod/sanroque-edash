@@ -7,7 +7,6 @@ import { getSelectedSchoolYear, initYearSwitcher, setSelectedSchoolYear } from '
 import { fsSubscribeLearners, fsSyncEnrollmentData } from './firestore-api';
 
 export let enrollmentRequestId = 0;
-export let visitorEnrollmentUnsubscribe = null;
 /** Live learner subscription for the selected year — enrollment counts update instantly on any learner change. */
 export let enrollmentLearnerUnsubscribe = null;
 
@@ -58,8 +57,6 @@ export function initEnrollmentData() {
       };
 
       void loadVisitorSummaryOnce();
-      visitorEnrollmentUnsubscribe?.();
-      visitorEnrollmentUnsubscribe = null;
       initYearSwitcher(() => {});
       return;
     }

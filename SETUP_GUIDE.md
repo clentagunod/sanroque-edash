@@ -238,11 +238,7 @@ firebase deploy --only hosting
 1. Open the Vercel project → **Settings → Environment Variables**.
 2. Add every variable from `.env.example`, using the same names and values as `.env.local`.
 3. Select the environments that need each value, then redeploy. Vercel injects `VITE_*` values at build time, so changing one requires a new deployment.
-4. Add `FIREBASE_SERVICE_ACCOUNT` as a server-only environment variable containing the service-account JSON for a dedicated service account with the least-privilege Firestore read-only IAM role available in your project; do not prefix it with `VITE_`. The API code reads only `publicStats/summary`.
-5. Deploy the Firestore rules as well as the website. Direct public reads of `publicStats/summary` are disabled; the visitor dashboard and parent portal get only allowlisted aggregate fields from the cached `/api/public-stats` endpoint.
-6. Do not paste service-account JSON, private keys, passwords, or admin tokens into any `VITE_*` variable. Vite intentionally exposes every `VITE_*` value to browsers.
-
-The public summary endpoint caches responses at Vercel's CDN for up to 60 seconds and permits stale responses while revalidating. Personal learner records are never returned by this endpoint. If using Firebase Hosting instead, this API route is unavailable; configure a server-side endpoint with equivalent caching before deploying the visitor experience there.
+4. Do not paste service-account JSON, private keys, passwords, or admin tokens into any `VITE_*` variable. Vite intentionally exposes every `VITE_*` value to browsers.
 
 ### Other Hosts
 

@@ -2,10 +2,9 @@
 import { LPSApi } from './sheets-api';
 import { displayNameFromEmail } from './auth';
 import { PROGRAM_FIELD_MAP } from './learner-list';
-import { auth, db, getPublicStats, getUserCreationAuth, userCreationAuth } from './firebase';
+import { auth, db, getUserCreationAuth, userCreationAuth } from './firebase';
 import { appRole, appSessionId, isTeacher, isVisitorSession, normalizeTeacherAssignmentsForStorage, setAppUserProfile, storedAppProfile } from './app-config';
-import { LPSCache } from './cache';
-import { buildPublicStatsDelta, isPublicActiveLearner } from './public-stats';
+import { LPSCache, PUBLIC_STATS_CACHE_TTL_MS } from './cache';
 
 /**
  * ============================================================================
@@ -164,6 +163,7 @@ export function fsInvalidateReadCaches_(schoolYear = "") {
   LPSCache.clear("firestore_advisory_");
   LPSCache.clear("firestore_sections_");
   LPSCache.clear("firestore_profile_");
+  LPSCache.clear("parent_learner_lookup_");
   LPSCache.remove("firestore_public_stats");
   LPSCache.remove("firestore_users");
   LPSCache.remove("firestore_school_years");
@@ -610,12 +610,11 @@ export async function fsGetSchoolYears() {
  *
  * IMPORTANT: this intentionally never throws for a "not found" doc — a
  * missing aggregate is a normal, valid state (zero learners), not an error.
- * Callers (dashboard, year switcher) must treat `null` as "show zero/empty
- * data", not as a failure. Genuine Firestore errors (network, permissions)
+ * The null result is cached for the public-stat TTL too, avoiding repeated
+ * missing-document reads. Genuine Firestore errors (network, permissions)
  * still reject the returned promise.
  */
 export async function fsGetPublicStats() {
-  if (isVisitorSession()) return getPublicStats();
   // A live snapshot already in memory is fresher than any cache entry — use it.
   const live = fsLiveData_("publicStats", "summary");
   if (live) return live;
@@ -624,10 +623,7 @@ export async function fsGetPublicStats() {
     return snapshot.exists ? snapshot.data() : null;
   };
   if (typeof LPSCache === "undefined") return readStats();
-  // A `null` result (no doc yet) must never be cached as a hard failure —
-  // getOrLoad() only caches resolved values, so this is safe: the next call
-  // will simply check Firestore again instead of being stuck on a stale miss.
-  return LPSCache.getOrLoad("firestore_public_stats", readStats, 300000, 3600000);
+  return LPSCache.getOrLoad("firestore_public_stats", readStats, PUBLIC_STATS_CACHE_TTL_MS, 3600000);
 }
 
 export async function fsGetPublicEnrollmentData() {
@@ -693,9 +689,8 @@ export function fsSubscribeSections(schoolYear, onChange, onError) {
 export async function fsRefreshPublicStats() {
   const years = await fsGetSchoolYears();
   const current = years.find((year) => year.isCurrent) || years[0];
-  const learners = current
-    ? (await fsGetAllLearners_(current.schoolYear)).filter(fsPublicActive_)
-    : [];
+  const learnersByYear = await Promise.all(years.map((year) => fsGetAllLearners_(year.schoolYear)));
+  const learners = current ? learnersByYear[years.findIndex((year) => year.schoolYear === current.schoolYear)] || [] : [];
   const programFields = ["is4Ps", "isIP", "isSNED", "isARAL", "isMuslim"];
   const gradeCounts = {};
   learners.forEach((learner) => {
@@ -704,8 +699,12 @@ export async function fsRefreshPublicStats() {
   });
   const taggedCount = learners.filter((learner) => programFields.some((field) => learner[field])).length;
   const enrollmentData = current ? await fsGetEnrollmentData(current.schoolYear, learners) : { schoolYear: "", rows: [], gradeTotals: [], grandTotal: { male: 0, female: 0, total: 0 } };
+  const recentLearners = learners
+    .slice()
+    .sort((a, b) => fsRecentLearnerSortValue_(b.dateAdded) - fsRecentLearnerSortValue_(a.dateAdded))
+    .slice(0, 5)
+    .map((learner) => ({ ...learner, dateAdded: fsLearnerDate_(learner.dateAdded) }));
   const stats = {
-    aggregateVersion: 2,
     totalLearners: learners.length,
     programsTracked: programFields.filter((field) => learners.some((learner) => learner[field])).length,
     fourPsCount: learners.filter((learner) => learner.is4Ps).length,
@@ -715,16 +714,16 @@ export async function fsRefreshPublicStats() {
     muslimCount: learners.filter((learner) => learner.isMuslim).length,
     maleCount: learners.filter((learner) => learner.gender === "Male").length,
     femaleCount: learners.filter((learner) => learner.gender === "Female").length,
-    taggedCount,
     notTaggedCount: learners.length - taggedCount,
     gradeLevels: Object.entries(gradeCounts).map(([label, value]) => ({ label, value })),
+    recentLearners,
     enrollmentData,
     schoolYear: current?.schoolYear || "",
     syncStatus: current ? "Live" : "Unavailable",
     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
   };
-  await db.collection("publicStats").doc("summary").set(stats);
-  if (typeof LPSCache !== "undefined") LPSCache.write("firestore_public_stats", stats, 300000);
+  await db.collection("publicStats").doc("summary").set(stats, { merge: true });
+  if (typeof LPSCache !== "undefined") LPSCache.write("firestore_public_stats", stats, PUBLIC_STATS_CACHE_TTL_MS);
   return stats;
 }
 
@@ -734,54 +733,56 @@ export function fsSchedulePublicStatsRefresh_() {
   if (fsPublicStatsRefreshTimer_) clearTimeout(fsPublicStatsRefreshTimer_);
   fsPublicStatsRefreshTimer_ = setTimeout(() => {
     fsPublicStatsRefreshTimer_ = null;
-    void fsRefreshPublicStats().catch((error) => console.error("Public statistics rebuild failed.", error));
+    void fsRefreshPublicStats().catch(() => {});
   }, 250);
 }
 
 export function fsPublicActive_(learner) {
-  return isPublicActiveLearner(learner);
+  const enrollmentStatus = String(learner?.enrollmentStatus || "ACTIVE").toUpperCase().replace(/[ -]+/g, "_");
+  const eosyStatus = String(learner?.eosyStatus || "").toLowerCase().replace(/[_-]+/g, " ");
+  return enrollmentStatus !== "TRANSFERRED_OUT" && enrollmentStatus !== "DROPPED_OUT" && eosyStatus !== "dropped out" && !learner?.transferOut;
 }
 
 export function fsPublicMetricDelta_(before, after, field) {
   return Number(Boolean(fsPublicActive_(after) && after?.[field])) - Number(Boolean(fsPublicActive_(before) && before?.[field]));
 }
 
-export async function fsUpdatePublicStatsForChanges_(schoolYear, changes = []) {
+export async function fsUpdatePublicStatsForChange_(schoolYear, before, after) {
   const ref = db.collection("publicStats").doc("summary");
-  const result = await db.runTransaction(async (transaction) => {
+  await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
-    if (!snapshot.exists) return "missing";
+    if (!snapshot.exists) return;
     const stats = snapshot.data();
-    const update = { recentLearners: firebase.firestore.FieldValue.delete() };
-    if (!stats.schoolYear || stats.aggregateVersion !== 2) {
-      transaction.set(ref, update, { merge: true });
-      return "missing";
+    if (stats.schoolYear && stats.schoolYear !== schoolYear) return;
+    const fields = [["is4Ps", "fourPsCount"], ["isIP", "ipCount"], ["isSNED", "snedCount"], ["isARAL", "aralCount"], ["isMuslim", "muslimCount"]];
+    const update = {};
+    update.totalLearners = Number(stats.totalLearners || 0) + Number(fsPublicActive_(after)) - Number(fsPublicActive_(before));
+    update.maleCount = Number(stats.maleCount || 0) + (fsPublicActive_(after) && after?.gender === "Male" ? 1 : 0) - (fsPublicActive_(before) && before?.gender === "Male" ? 1 : 0);
+    update.femaleCount = Number(stats.femaleCount || 0) + (fsPublicActive_(after) && after?.gender === "Female" ? 1 : 0) - (fsPublicActive_(before) && before?.gender === "Female" ? 1 : 0);
+    fields.forEach(([field, countField]) => { update[countField] = Number(stats[countField] || 0) + fsPublicMetricDelta_(before, after, field); });
+    update.notTaggedCount = Math.max(0, update.totalLearners - fields.reduce((count, [, countField]) => count + Number(update[countField] || 0), 0));
+    const gradeCounts = Object.fromEntries((stats.gradeLevels || []).map((item) => [item.label, Number(item.value || 0)]));
+    if (fsPublicActive_(before) && before?.gradeLevel) gradeCounts[before.gradeLevel] = Math.max(0, (gradeCounts[before.gradeLevel] || 0) - 1);
+    if (fsPublicActive_(after) && after?.gradeLevel) gradeCounts[after.gradeLevel] = (gradeCounts[after.gradeLevel] || 0) + 1;
+    update.gradeLevels = Object.entries(gradeCounts).filter(([, value]) => value > 0).map(([label, value]) => ({ label, value }));
+    const enrollmentData = stats.enrollmentData ? JSON.parse(JSON.stringify(stats.enrollmentData)) : null;
+    if (enrollmentData?.rows) {
+      const adjustRows = (learner, amount) => {
+        if (!fsPublicActive_(learner)) return;
+        const row = enrollmentData.rows.find((item) => item.gradeLevel === learner.gradeLevel && item.section === learner.section);
+        if (!row) return;
+        row[learner.gender === "Male" ? "male" : "female"] = Math.max(0, Number(row[learner.gender === "Male" ? "male" : "female"] || 0) + amount);
+        row.total = Math.max(0, Number(row.total || 0) + amount);
+      };
+      adjustRows(before, -1);
+      adjustRows(after, 1);
+      enrollmentData.grandTotal = enrollmentData.rows.reduce((total, row) => ({ male: total.male + Number(row.male || 0), female: total.female + Number(row.female || 0), total: total.total + Number(row.total || 0) }), { male: 0, female: 0, total: 0 });
+      update.enrollmentData = enrollmentData;
     }
-    if (stats.schoolYear && fsNormalizeSchoolYear_(stats.schoolYear) !== fsNormalizeSchoolYear_(schoolYear)) {
-      transaction.set(ref, update, { merge: true });
-      return "ignored";
-    }
-    Object.assign(update, buildPublicStatsDelta(stats, changes, fsNormalizeGrade_));
     update.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
     transaction.set(ref, update, { merge: true });
-    return "updated";
   });
   if (typeof LPSCache !== "undefined") LPSCache.remove("firestore_public_stats");
-  return result;
-}
-
-export async function fsUpdatePublicStatsForChange_(schoolYear, before, after) {
-  return fsUpdatePublicStatsForChanges_(schoolYear, [{ before, after }]);
-}
-
-async function fsMaintainPublicStatsForChanges_(schoolYear, changes) {
-  try {
-    const result = await fsUpdatePublicStatsForChanges_(schoolYear, changes);
-    if (result === "missing") fsSchedulePublicStatsRefresh_();
-  } catch (error) {
-    console.error("Incremental public statistics update failed; rebuilding the aggregate.", error);
-    fsSchedulePublicStatsRefresh_();
-  }
 }
 
 export function fsSchoolYearSortValue_(value) {
@@ -1107,16 +1108,13 @@ export async function fsUpdateArchiveRecord(archive, schoolYear, learnerId, lear
   const archiveName = String(archive || "").toLowerCase();
   const collection = archiveName === "learners" ? fsLearnersCollection_(schoolYear) : fsArchiveCollection_(archiveName, schoolYear);
   const ref = collection.doc(learnerId);
-  const beforeSnapshot = await ref.get();
-  if (!beforeSnapshot.exists) throw new Error("Archived learner record was not found.");
-  const before = { ...beforeSnapshot.data(), learnerId, schoolYear };
+  const before = await ref.get();
+  if (!before.exists) throw new Error("Archived learner record was not found.");
   const update = { ...fsCanonicalLearner_(learner), schoolYear };
   await ref.set(update, { merge: true });
   fsInvalidateReadCaches_(schoolYear);
-  if (archiveName === "learners") {
-    await fsMaintainPublicStatsForChanges_(schoolYear, [{ before, after: { ...before, ...update, learnerId, schoolYear } }]);
-  }
-  fsAudit_("LEARNER_UPDATE", { sheet: `${archiveName}_${schoolYear}`, recordId: learnerId, oldValue: JSON.stringify(before), newValue: JSON.stringify(learner) });
+  void fsUpdatePublicStatsForChange_(schoolYear, {}, {}).catch(() => {});
+  fsAudit_("LEARNER_UPDATE", { sheet: `${archiveName}_${schoolYear}`, recordId: learnerId, oldValue: JSON.stringify(before.data()), newValue: JSON.stringify(learner) });
   return { updated: true };
 }
 
@@ -1130,6 +1128,7 @@ export async function fsDeleteArchiveRecord(archive, schoolYear, learnerId) {
     if (!snapshot.exists) throw new Error("This archived learner was already removed or could not be found.");
     await ref.delete();
     fsInvalidateReadCaches_(schoolYear);
+    await fsRefreshPublicStats();
     fsAudit_("LEARNER_DELETE", { sheet: `${archiveName}_${schoolYear}`, recordId: learnerId, oldValue: JSON.stringify(snapshot.data()) });
     return { deleted: true };
   } catch (error) {
@@ -1296,76 +1295,6 @@ export async function fsGetLearner(learnerId, schoolYear) {
   }
   const doc = await fsLearnersCollection_(schoolYear).doc(learnerId).get();
   return doc.exists ? { ...doc.data(), learnerId: doc.id, dateAdded: fsLearnerDate_(doc.data().dateAdded || doc.data().createdAt || doc.data().addedAt) } : null;
-}
-
-const FS_PARENT_LEARNER_CACHE_LIMIT = 12;
-const fsParentLearnerCache_ = new Map();
-
-function fsTrimParentLearnerCache_() {
-  while (fsParentLearnerCache_.size > FS_PARENT_LEARNER_CACHE_LIMIT) {
-    const oldestIdleEntry = [...fsParentLearnerCache_.entries()]
-      .filter(([, entry]) => entry.listeners.size === 0)
-      .sort(([, first], [, second]) => first.lastUsedAt - second.lastUsedAt)[0];
-    if (!oldestIdleEntry) return;
-    const [key, entry] = oldestIdleEntry;
-    entry.unsubscribe?.();
-    fsParentLearnerCache_.delete(key);
-  }
-}
-
-export function fsSubscribeParentLearner(learnerId, schoolYear, onChange, onError) {
-  const id = String(learnerId || "").trim();
-  const year = String(schoolYear || "").trim();
-  if (!id || !year) throw new Error("A learner ID and school year are required.");
-  const key = `${year}|${id}`;
-  let entry = fsParentLearnerCache_.get(key);
-  if (!entry) {
-    entry = { loaded: false, data: null, listeners: new Set(), errors: new Set(), unsubscribe: null, lastUsedAt: Date.now() };
-    fsParentLearnerCache_.set(key, entry);
-  }
-
-  entry.lastUsedAt = Date.now();
-  if (typeof onChange === "function") entry.listeners.add(onChange);
-  if (typeof onError === "function") entry.errors.add(onError);
-  if (entry.loaded && typeof onChange === "function") onChange(entry.data);
-
-  if (!entry.unsubscribe) {
-    try {
-      entry.unsubscribe = fsLearnersCollection_(year).doc(id).onSnapshot(
-        (snapshot) => {
-          entry.loaded = true;
-          entry.data = snapshot.exists && fsIsActiveLearner_(snapshot.data())
-            ? { ...snapshot.data(), learnerId: snapshot.id, dateAdded: fsLearnerDate_(snapshot.data().dateAdded || snapshot.data().createdAt || snapshot.data().addedAt) }
-            : null;
-          entry.lastUsedAt = Date.now();
-          entry.listeners.forEach((listener) => {
-            try { listener(entry.data); } catch (error) { console.error("Parent learner view update failed.", error); }
-          });
-          fsTrimParentLearnerCache_();
-        },
-        (error) => {
-          entry.unsubscribe = null;
-          const lookupError = fsError_("Parent learner lookup", error);
-          entry.errors.forEach((listener) => {
-            try { listener(lookupError); } catch (listenerError) { console.error("Parent learner error handler failed.", listenerError); }
-          });
-        }
-      );
-    } catch (error) {
-      const lookupError = fsError_("Parent learner lookup", error);
-      entry.errors.forEach((listener) => {
-        try { listener(lookupError); } catch (listenerError) { console.error("Parent learner error handler failed.", listenerError); }
-      });
-    }
-  }
-
-  fsTrimParentLearnerCache_();
-  return () => {
-    if (typeof onChange === "function") entry.listeners.delete(onChange);
-    if (typeof onError === "function") entry.errors.delete(onError);
-    entry.lastUsedAt = Date.now();
-    fsTrimParentLearnerCache_();
-  };
 }
 
 export async function fsGetLearnerPage(options = {}) {
@@ -1542,10 +1471,7 @@ export async function fsAddLearner(schoolYear, learner) {
       void fsSyncAdvisoryLearner_(schoolYear, { ...canonical, learnerId: ref.id }).catch(() => {});
     }
     fsInvalidateReadCaches_(schoolYear);
-    await fsMaintainPublicStatsForChanges_(schoolYear, [{
-      before: null,
-      after: archiveType ? null : { ...fsCanonicalLearner_(learner), learnerId, schoolYear, dateAdded: new Date().toISOString() },
-    }]);
+    fsSchedulePublicStatsRefresh_();
     fsAudit_("LEARNER_ADD", { sheet: archiveType ? `${archiveType}_${schoolYear}` : `learners_${schoolYear}`, recordId: ref.id, newValue: JSON.stringify(learner) });
     return { learnerId: ref.id };
   } catch (error) {
@@ -1559,13 +1485,11 @@ export async function fsUpdateLearner(schoolYear, learnerId, learner) {
     const update = fsCanonicalLearner_(learner);
     if (!Object.prototype.hasOwnProperty.call(learner, "dateAdded")) delete update.dateAdded;
     const archiveType = fsLearnerArchiveType_(learner);
-    const beforeSnapshot = await ref.get();
-    const before = beforeSnapshot.exists
-      ? { ...beforeSnapshot.data(), learnerId, schoolYear }
-      : null;
+    let before = null;
     if (archiveType) {
-      if (!before) throw new Error("This learner record could not be found.");
-      const merged = { ...before, ...update, learnerId, schoolYear };
+      before = await ref.get();
+      if (!before.exists) throw new Error("This learner record could not be found.");
+      const merged = { ...before.data(), ...update, learnerId, schoolYear };
       const batch = db.batch();
       batch.set(fsArchiveCollection_(archiveType, schoolYear).doc(learnerId), { ...merged, schoolYear }, { merge: true });
       batch.delete(ref);
@@ -1573,16 +1497,13 @@ export async function fsUpdateLearner(schoolYear, learnerId, learner) {
       if (fsAdvisoryIndexWriteEnabled_()) void fsSyncAdvisoryLearner_(schoolYear, null, merged).catch(() => {});
     } else {
       await ref.set(update, { merge: true });
-      if (fsAdvisoryIndexWriteEnabled_()) void fsSyncAdvisoryLearner_(schoolYear, { ...before, ...update, learnerId, schoolYear }).catch(() => {});
+      if (fsAdvisoryIndexWriteEnabled_()) void fsSyncAdvisoryLearner_(schoolYear, { ...update, learnerId, schoolYear }).catch(() => {});
     }
     fsInvalidateReadCaches_(schoolYear);
-    await fsMaintainPublicStatsForChanges_(schoolYear, [{
-      before,
-      after: archiveType ? null : { ...before, ...update, learnerId, schoolYear },
-    }]);
+    fsSchedulePublicStatsRefresh_();
     fsAudit_("LEARNER_UPDATE", {
       sheet: archiveType ? `${archiveType}_${schoolYear}` : `learners_${schoolYear}`, recordId: learnerId,
-      oldValue: before ? JSON.stringify(before) : "",
+      oldValue: before?.exists ? JSON.stringify(before.data()) : "",
       newValue: JSON.stringify(learner),
     });
     return { updated: true };
@@ -1618,7 +1539,7 @@ export async function fsDeleteLearner(schoolYear, learnerId) {
     if (fsAdvisoryIndexWriteEnabled_()) await fsSyncAdvisoryLearner_(targetYear, null, before.data());
     await ref.delete();
     fsInvalidateReadCaches_(targetYear);
-    await fsMaintainPublicStatsForChanges_(targetYear, [{ before: { ...before.data(), learnerId: targetId, schoolYear: targetYear }, after: null }]);
+    fsSchedulePublicStatsRefresh_();
     fsAudit_("LEARNER_DELETE", { sheet: `learners_${targetYear}`, recordId: targetId, oldValue: JSON.stringify(before.data()) });
     return { deleted: true };
   } catch (error) {
@@ -1636,7 +1557,6 @@ export async function fsDeleteLearners(schoolYear, learnerIds) {
     // Firestore batches cap out at 500 writes; chunk defensively so bulk
     // removal keeps working even for a very large selection.
     const maxBatchWrites = 450;
-    const removedLearners = [];
     let batch = db.batch();
     let batchWrites = 0;
     const commitBatch = async () => {
@@ -1648,7 +1568,6 @@ export async function fsDeleteLearners(schoolYear, learnerIds) {
     for (const learnerId of targetIds) {
       const ref = fsLearnersCollection_(targetYear).doc(learnerId);
       const snapshot = await ref.get();
-      if (snapshot.exists) removedLearners.push({ before: { ...snapshot.data(), learnerId, schoolYear: targetYear }, after: null });
       batch.delete(ref);
       batchWrites += 1;
       // Only admin/registrar maintain the advisory index (see
@@ -1664,7 +1583,7 @@ export async function fsDeleteLearners(schoolYear, learnerIds) {
     }
     await commitBatch();
     fsInvalidateReadCaches_(targetYear);
-    await fsMaintainPublicStatsForChanges_(targetYear, removedLearners);
+    fsSchedulePublicStatsRefresh_();
     fsAudit_("LEARNER_DELETE", { sheet: `learners_${targetYear}`, recordId: targetIds.join(", ") });
     return { deleted: targetIds.length };
   } catch (error) {

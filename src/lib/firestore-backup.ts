@@ -3,6 +3,7 @@ import { FS_DROPOUTS, FS_LEARNERS, FS_SCHOOL_YEARS, FS_SETTINGS, FS_TRANSFERRED_
 import { APP_CONFIG } from './app-config';
 import { clearButtonLoading, setButtonLoading, showToast } from './shell';
 import { auth, db } from './firebase';
+import { CURRICULUM_SUBJECTS } from './curriculum-subjects';
 
 export const BACKUP_LEARNER_FIELDS = [
   ["learnerId", "LRN"], ["firstName", "First Name"], ["lastName", "Last Name"], ["middleName", "Middle Name"], ["age", "Age"], ["birthDate", "Birthdate"],
@@ -17,6 +18,9 @@ export const BACKUP_LEARNER_FIELDS = [
   ["bosyRMA", "BOSY RMA"], ["mosyRMA", "MOSY RMA"], ["eosyRMA", "EOSY RMA"],
   ["filipino", "Filipino"], ["english", "English"], ["math", "Math"], ["science", "Science"], ["aralPan", "Aral Pan"], ["esp", "ESP"],
   ["music", "Music"], ["arts", "Arts"], ["pe", "PE"], ["health", "Health"], ["epp", "EPP"], ["motherTongue", "Mother Tongue"],
+  ...CURRICULUM_SUBJECTS
+    .filter(({ id }) => !["filipino", "english", "math", "science", "aralPan", "esp", "music", "arts", "pe", "health", "epp", "motherTongue"].includes(id))
+    .map(({ id, label }) => [id, label]),
   ["transferType", "Transfer Type"], ["transferIn", "Transfer In"], ["transferOut", "Transfer Out"], ["transferSchool", "Transfer School"],
   ["transferDate", "Transfer Date"], ["transferReason", "Transfer Reason"], ["transferNotes", "Transfer Notes"],
 ];

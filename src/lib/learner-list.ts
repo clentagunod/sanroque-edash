@@ -7,6 +7,7 @@ import { escapeHtml, formatAppDate, programBadges, renderShell, showToast } from
 import { DEMO_LEARNERS, isSheetsApiConfigured } from './demo-data';
 import { fsAddLearner, fsDeleteLearner, fsDeleteLearners, fsGetLearner, fsGetLearnerPage, fsSubscribeLearners } from './firestore-api';
 import { PHIL_IRI_CATEGORIES } from './profile-charts';
+import { CURRICULUM_SUBJECTS, LEGACY_CURRICULUM_SUBJECT_IDS, curriculumSubjectIdsForGrade, normalizeCurriculumGrade } from './curriculum-subjects';
 
 /**
  * ============================================================================
@@ -19,6 +20,7 @@ import { PHIL_IRI_CATEGORIES } from './profile-charts';
  */
 
 export const PROGRAM_FIELD_MAP = { "4Ps": "is4Ps", IP: "isIP", SNED: "isSNED", ARAL: "isARAL", Muslim: "isMuslim" };
+const CURRICULUM_SUBJECT_IDS = new Set(CURRICULUM_SUBJECTS.map(({ id }) => id));
 
 export let LL = {
   program: "",
@@ -39,6 +41,15 @@ export let LL = {
   enrollmentSectionsInflight: {},
   sectionSchoolYear: "",
   extraSchemaByYear: {},
+  curriculumSubjectsByYear: {},
+  curriculumLoadedAtByYear: {},
+  curriculumRequestsByYear: {},
+  subjectRequestId: 0,
+  activeSubjectIds: [],
+  subjectConfigYear: "",
+  subjectConfigGrade: "",
+  subjectsLoading: false,
+  editingLearnerOriginal: {},
 };
 export let learnerModalBusy = false;
 export let learnerMutationBusy = false;
@@ -53,7 +64,7 @@ const LEARNER_DETAIL_GROUPS = [
   { title: "Programs", matches: (key) => ["is4Ps", "isIP", "isSNED", "isARAL", "isMuslim"].includes(key) },
   { title: "Learning assessments", matches: (key) => /^(bosy|mosy|eosy)(crla|philiri|rma)$/i.test(key) },
   { title: "Nutrition", matches: (key) => /^(bosy|mosy|eosy)(height|weight|nutritionalstatus)$/i.test(key) },
-  { title: "Academic grades", matches: (key) => ["filipino", "english", "math", "science", "aralPan", "esp", "music", "arts", "pe", "health", "epp", "motherTongue"].includes(key) },
+  { title: "Academic grades", matches: (key) => CURRICULUM_SUBJECT_IDS.has(key) },
   { title: "Transfer information", matches: (key) => ["transferType", "transferIn", "transferOut", "transferSchool", "transferDate", "transferReason", "transferNotes"].includes(key) },
 ];
 
@@ -82,6 +93,7 @@ const LEARNER_DETAIL_LABELS = {
   motherTongue: "Mother tongue",
   transferIn: "Transfer in",
   transferOut: "Transfer out",
+  ...Object.fromEntries(CURRICULUM_SUBJECTS.map(({ id, label }) => [id, label])),
 };
 
 /**
@@ -812,6 +824,7 @@ export function wireModal() {
   form.addEventListener("submit", handleLearnerFormSubmit);
   document.getElementById("f_gradeLevel").addEventListener("change", updateReadingReferenceVisibility);
   document.getElementById("f_gradeLevel").addEventListener("change", updateSectionOptions);
+  document.getElementById("f_gradeLevel").addEventListener("change", () => { void updateSubjectInputVisibility(); });
   document.getElementById("f_section").addEventListener("input", validateSectionInput);
   const transferTypeInput = document.getElementById("f_transferType");
   if (transferTypeInput) transferTypeInput.addEventListener("change", updateTransferVisibility);
@@ -823,6 +836,7 @@ export function wireModal() {
     if (document.getElementById("f_gradeLevel")) document.getElementById("f_gradeLevel").value = assignment.gradeLevel;
     if (document.getElementById("f_section")) document.getElementById("f_section").value = assignment.section;
     validateSectionInput();
+    void updateSubjectInputVisibility();
   });
   wireLearnerArrowNavigation(form);
 
@@ -837,6 +851,7 @@ export async function openAddModal() {
   if (learnerModalBusy || document.getElementById("learnerModalBackdrop").classList.contains("is-open")) return;
   learnerModalBusy = true;
   LL.editingId = null;
+  LL.editingLearnerOriginal = {};
   document.getElementById("learnerModalTitle").textContent = "Add Learner";
   document.getElementById("learnerForm").reset();
     applyTeacherLearnerScope();
@@ -860,6 +875,7 @@ export async function openAddModal() {
   const metadataTasks = [
     loadSectionOptions(schoolYear).then(updateSectionOptions),
     renderExtraFieldInputs({}),
+    updateSubjectInputVisibility(schoolYear),
   ];
   await Promise.all(metadataTasks);
   learnerFormInitialSnapshot = formSnapshot(document.getElementById("learnerForm"));
@@ -907,6 +923,7 @@ export async function openEditModal(learnerId) {
   }
 
   LL.editingId = learnerId;
+  LL.editingLearnerOriginal = learner;
   document.getElementById("learnerModalTitle").textContent = "Edit Learner";
   const learnerIdInput = document.getElementById("f_learnerId");
   learnerIdInput.value = learner.learnerId || learnerId;
@@ -970,6 +987,7 @@ export async function openEditModal(learnerId) {
     if (input) input.value = learner[field] || "";
   });
   await renderExtraFieldInputs(learner.extra || {});
+  await updateSubjectInputVisibility(LL.sectionSchoolYear);
   learnerFormInitialSnapshot = formSnapshot(document.getElementById("learnerForm"));
   setLearnerModalLoading(false);
   learnerModalBusy = false;
@@ -1017,6 +1035,17 @@ export function closeModal(force = false) {
 export async function handleLearnerFormSubmit(e) {
   e.preventDefault();
   if (learnerMutationBusy) return;
+  const selectedGrade = normalizeCurriculumGrade(document.getElementById("f_gradeLevel")?.value);
+  const selectedYear = String(getSelectedSchoolYear() || "").trim();
+  if (LL.subjectConfigGrade !== selectedGrade || LL.subjectConfigYear !== selectedYear) {
+    await updateSubjectInputVisibility(selectedYear);
+    showToast("Subject fields were refreshed for the selected grade and school year. Review them before saving.", "info");
+    return;
+  }
+  if (LL.subjectsLoading) {
+    showToast("Wait for the grade's subject fields to finish loading before saving.", "error");
+    return;
+  }
   const form = document.getElementById("learnerForm");
   if (!form.reportValidity()) return;
   const learnerId = getLearnerFieldValue("f_learnerId").trim();
@@ -1085,18 +1114,7 @@ export async function handleLearnerFormSubmit(e) {
     isSNED: document.getElementById("f_isSNED")?.checked || false,
     isARAL: document.getElementById("f_isARAL")?.checked || false,
     isMuslim: document.getElementById("f_isMuslim")?.checked || false,
-    filipino: getLearnerFieldValue("f_filipino").trim(),
-    english: getLearnerFieldValue("f_english").trim(),
-    math: getLearnerFieldValue("f_math").trim(),
-    science: getLearnerFieldValue("f_science").trim(),
-    aralPan: getLearnerFieldValue("f_aralPan").trim(),
-    esp: getLearnerFieldValue("f_esp").trim(),
-    music: getLearnerFieldValue("f_music").trim(),
-    arts: getLearnerFieldValue("f_arts").trim(),
-    pe: getLearnerFieldValue("f_pe").trim(),
-    health: getLearnerFieldValue("f_health").trim(),
-    epp: getLearnerFieldValue("f_epp").trim(),
-    motherTongue: getLearnerFieldValue("f_motherTongue").trim(),
+    ...collectSubjectGradeValues(),
     bosyCRLA: getLearnerFieldValue("f_bosyCRLA"),
     mosyCRLA: getLearnerFieldValue("f_mosyCRLA"),
     eosyCRLA: getLearnerFieldValue("f_eosyCRLA"),
@@ -1249,12 +1267,91 @@ export function ensureSubjectInputs() {
   if (document.getElementById("f_filipino")) return;
   const formGrid = document.querySelector("#learnerForm .field-grid");
   if (!formGrid) return;
-  const subjects = [
-    ["filipino", "Filipino"], ["english", "English"], ["math", "Math"], ["science", "Science"],
-    ["aralPan", "AralPan"], ["esp", "ESP"], ["music", "Music"], ["arts", "Arts"],
-    ["pe", "PE"], ["health", "Health"], ["epp", "EPP"], ["motherTongue", "Mother Tongue"],
-  ];
-  formGrid.insertAdjacentHTML("beforeend", `<div class="field span-2 subject-input-group"><label>Subject grades <small>(optional, 60-100)</small></label><div class="subject-inputs">${subjects.map(([key, label]) => `<label for="f_${key}">${label}<input id="f_${key}" type="number" min="60" max="100" step="0.01" placeholder="-" /></label>`).join("")}</div></div>`);
+  formGrid.insertAdjacentHTML("beforeend", `<div class="field span-2 subject-input-group"><label>Subject grades <small id="subjectReferenceHint">(optional, 60-100) · select a grade level</small></label><div class="subject-inputs">${CURRICULUM_SUBJECTS.map(({ id, label }) => `<label for="f_${id}" data-subject-id="${id}" hidden>${label}<input id="f_${id}" type="number" min="60" max="100" step="0.01" placeholder="-" /></label>`).join("")}</div></div>`);
+}
+
+export function collectSubjectGradeValues() {
+  const activeIds = new Set(LL.activeSubjectIds);
+  return Object.fromEntries(CURRICULUM_SUBJECTS.map(({ id }) => {
+    const input = document.getElementById(`f_${id}`);
+    const value = activeIds.has(id)
+      ? String(input?.value || "").trim()
+      : String(LL.editingLearnerOriginal?.[id] ?? "").trim();
+    return [id, value];
+  }));
+}
+
+export async function updateSubjectInputVisibility(schoolYear = getSelectedSchoolYear()) {
+  const group = document.querySelector(".subject-input-group");
+  const hint = document.getElementById("subjectReferenceHint");
+  const grade = normalizeCurriculumGrade(document.getElementById("f_gradeLevel")?.value);
+  if (!group || !hint) return;
+  const requestId = ++LL.subjectRequestId;
+  LL.subjectsLoading = true;
+  LL.activeSubjectIds = [];
+  CURRICULUM_SUBJECTS.forEach(({ id }) => {
+    const field = document.querySelector(`[data-subject-id="${id}"]`);
+    if (field) field.hidden = true;
+  });
+  if (!grade) {
+    hint.textContent = "Select a grade level to load its assigned subjects.";
+    LL.subjectConfigYear = String(schoolYear || "").trim();
+    LL.subjectConfigGrade = "";
+    LL.subjectsLoading = false;
+    return;
+  }
+
+  hint.textContent = `Loading assigned subjects for ${grade}…`;
+  try {
+    let assignments;
+    let useLegacySubjects = false;
+    if (typeof LPSApi.getGradeSubjectAssignments !== "function") {
+      assignments = { [grade]: { configured: false, subjectIds: LEGACY_CURRICULUM_SUBJECT_IDS } };
+      useLegacySubjects = true;
+      hint.textContent = `Curriculum settings are not available here; showing the existing subject fields for ${grade}.`;
+    } else {
+      const year = String(schoolYear || "").trim();
+      if (!year) throw new Error("Select a school year before loading its curriculum.");
+      let request = LL.curriculumRequestsByYear[year];
+      const cachedGrades = LL.curriculumSubjectsByYear[year];
+      if (!request && cachedGrades && Date.now() - LL.curriculumLoadedAtByYear[year] < 15000) {
+        assignments = cachedGrades;
+      }
+      if (!request) {
+        if (!assignments) {
+          request = LPSApi.getGradeSubjectAssignments(year).then((result) => {
+            LL.curriculumSubjectsByYear[year] = result?.grades || {};
+            LL.curriculumLoadedAtByYear[year] = Date.now();
+            return LL.curriculumSubjectsByYear[year];
+          });
+          LL.curriculumRequestsByYear[year] = request;
+          request.finally(() => {
+            if (LL.curriculumRequestsByYear[year] === request) delete LL.curriculumRequestsByYear[year];
+          }).catch(() => {});
+        }
+      }
+      if (request) assignments = await request;
+    }
+    if (requestId !== LL.subjectRequestId) return;
+    LL.activeSubjectIds = curriculumSubjectIdsForGrade(assignments, grade, useLegacySubjects);
+    const activeIds = new Set(LL.activeSubjectIds);
+    CURRICULUM_SUBJECTS.forEach(({ id }) => {
+      const field = document.querySelector(`[data-subject-id="${id}"]`);
+      if (field) field.hidden = !activeIds.has(id);
+    });
+    hint.textContent = LL.activeSubjectIds.length
+      ? `${grade} · ${LL.activeSubjectIds.length} assigned subject${LL.activeSubjectIds.length === 1 ? "" : "s"} (optional grades, 60-100).`
+      : `No subjects are assigned to ${grade} for this school year. Ask the School Admin to configure its curriculum.`;
+  } catch (error) {
+    if (requestId !== LL.subjectRequestId) return;
+    hint.textContent = `Unable to load subjects for ${grade}: ${error.message || "Unknown error"}. Existing grades will be preserved when editing.`;
+  } finally {
+    if (requestId === LL.subjectRequestId) {
+      LL.subjectConfigYear = String(schoolYear || "").trim();
+      LL.subjectConfigGrade = grade;
+      LL.subjectsLoading = false;
+    }
+  }
 }
 
 export function updateReadingReferenceVisibility() {

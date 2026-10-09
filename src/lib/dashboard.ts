@@ -70,21 +70,71 @@ export function renderDashboardContext() {
   welcome.textContent = `Welcome, ${displayName}`;
   if (isTeacher()) {
     const assignments = teacherAssignmentsForProfile(profile);
+    dashboardContext?.classList.add("is-teacher");
     if (!assignments.length) {
-      scope.innerHTML = `<strong>Advisory coverage</strong><span>No grade-section assignments yet</span><small>Ask the school admin to assign your teacher coverage before using the dashboard.</small>`;
+      scope.innerHTML = `
+        <div class="dashboard-coverage-heading">
+          <strong>Advisory coverage</strong>
+          <span class="dashboard-coverage-count">0 sections</span>
+        </div>
+        <div class="dashboard-coverage-empty">No grade-section assignments yet. Ask the school admin to assign your teacher coverage.</div>`;
       return;
     }
-    const yearLabel = assignments.map((assignment) => assignment.schoolYear || "Current school year").find(Boolean) || "Current school year";
-    const coverage = assignments.map((assignment) => {
-      const gradeLevel = String(assignment.gradeLevel || assignment.gradeKey || "Grade not assigned").trim();
-      const sectionValue = String(assignment.section || assignment.sectionKey || "").trim();
-      const sectionLabel = sectionValue ? `Section ${sectionValue}` : "Section not assigned";
-      return `${gradeLevel} · ${sectionLabel}`;
-    }).join(" • ");
-    scope.innerHTML = `<strong>Advisory coverage</strong><span>${escapeHtml(yearLabel)} · ${escapeHtml(coverage)}</span><small>Dashboard totals, learner lists, and enrollment counts include all assigned teacher sections.</small>`;
+    const groups = groupTeacherAssignmentsByYear(assignments);
+    const assignmentCount = groups.reduce((total, group) => total + group.assignments.length, 0);
+    scope.innerHTML = `
+      <div class="dashboard-coverage-heading">
+        <strong>Advisory coverage</strong>
+        <span class="dashboard-coverage-count">${assignmentCount} assigned section${assignmentCount === 1 ? "" : "s"}</span>
+      </div>
+      <div class="dashboard-coverage-groups">
+        ${groups.map((group) => `
+          <section class="dashboard-coverage-year" aria-label="${escapeHtml(group.schoolYear)} assignments">
+            <h3>${escapeHtml(group.schoolYear)}</h3>
+            <ul class="dashboard-coverage-list">
+              ${group.assignments.map((assignment) => `
+                <li class="dashboard-coverage-assignment">
+                  <span class="dashboard-coverage-grade">${escapeHtml(assignment.gradeLevel)}</span>
+                  <span class="dashboard-coverage-section">${escapeHtml(assignment.section)}</span>
+                </li>`).join("")}
+            </ul>
+          </section>`).join("")}
+      </div>
+      <small>Dashboard totals, learner lists, and enrollment counts include all assigned teacher sections.</small>`;
   } else {
+    dashboardContext?.classList.remove("is-teacher");
     scope.innerHTML = `<strong>School-wide registrar view</strong><span>All grades, sections, and active learners</span><small>Manage the complete masterlist and registrar data from the navigation.</small>`;
   }
+}
+
+export function groupTeacherAssignmentsByYear(assignments) {
+  const groups = new Map();
+  const seen = new Set();
+  (Array.isArray(assignments) ? assignments : []).forEach((assignment) => {
+    const schoolYear = String(assignment.schoolYear || "Current school year").trim() || "Current school year";
+    const gradeLevel = String(assignment.gradeLevel || assignment.gradeKey || "Grade not assigned").trim();
+    const sectionValue = String(assignment.section || assignment.sectionKey || "").trim();
+    const section = sectionValue ? `Section ${sectionValue}` : "Section not assigned";
+    const key = `${schoolYear}::${gradeLevel}::${section}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    if (!groups.has(schoolYear)) groups.set(schoolYear, []);
+    groups.get(schoolYear).push({ gradeLevel, section });
+  });
+  const gradeOrder = (grade) => {
+    const match = grade.match(/^Grade\s+(\d+)$/i);
+    return /^kinder$/i.test(grade) ? 0 : match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
+  };
+  return [...groups.entries()]
+    .sort(([first], [second]) => second.localeCompare(first, undefined, { numeric: true }))
+    .map(([schoolYear, yearAssignments]) => ({
+      schoolYear,
+      assignments: yearAssignments.sort((first, second) => (
+        gradeOrder(first.gradeLevel) - gradeOrder(second.gradeLevel)
+        || first.gradeLevel.localeCompare(second.gradeLevel, undefined, { numeric: true })
+        || first.section.localeCompare(second.section, undefined, { numeric: true })
+      )),
+    }));
 }
 
 export function renderDashboardSummary(summary, recentLearners = []) {

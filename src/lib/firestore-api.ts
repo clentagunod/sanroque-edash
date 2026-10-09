@@ -5,6 +5,7 @@ import { PROGRAM_FIELD_MAP } from './learner-list';
 import { auth, db, getUserCreationAuth, userCreationAuth } from './firebase';
 import { appRole, appSessionId, isTeacher, isVisitorSession, normalizeTeacherAssignmentsForStorage, setAppUserProfile, storedAppProfile } from './app-config';
 import { LPSCache, PUBLIC_STATS_CACHE_TTL_MS } from './cache';
+import { CURRICULUM_GRADE_LEVELS, normalizeCurriculumGrade, normalizeCurriculumSubjectIds } from './curriculum-subjects';
 
 /**
  * ============================================================================
@@ -49,6 +50,9 @@ export const FS_LEARNER_FIELD_ORDER = [
   "bosyHeight", "bosyWeight", "bosyNutritionalStatus", "mosyHeight", "mosyWeight", "mosyNutritionalStatus", "eosyHeight", "eosyWeight", "eosyNutritionalStatus",
   "bosyCRLA", "mosyCRLA", "eosyCRLA", "bosyPhilIRI", "mosyPhilIRI", "eosyPhilIRI", "bosyRMA", "mosyRMA", "eosyRMA",
   "filipino", "english", "math", "science", "aralPan", "esp", "music", "arts", "pe", "health", "epp", "motherTongue",
+  "literacyLanguageCommunication", "socioEmotionalDevelopment", "valuesDevelopment", "physicalHealthMotorDevelopment",
+  "aestheticCreativeDevelopment", "cognitiveDevelopment", "gmrc", "language", "readingLiteracy", "makabansa", "eppTle",
+  "tle", "valuesEducation", "mapeh",
   "transferType", "transferIn", "transferOut", "transferSchool", "transferDate", "transferReason", "transferNotes", "extra",
 ];
 
@@ -857,6 +861,59 @@ export async function fsGetSections(schoolYear) {
   return typeof LPSCache === "undefined" ? load() : LPSCache.getOrLoad(`firestore_sections_${schoolYear || "all"}`, load, 30000, 120000);
 }
 
+export async function fsGetGradeSubjectAssignments(schoolYear) {
+  const year = fsNormalizeSchoolYear_(schoolYear);
+  if (!/^\d{4}-\d{4}$/.test(year)) throw new Error("A valid school year is required to load curriculum subjects.");
+  const load = async () => {
+    const snapshot = await db.collection(FS_SECTIONS).doc(year).collection("grades").get();
+    const grades = {};
+    snapshot.docs.forEach((document) => {
+      const data = document.data();
+      const gradeLevel = normalizeCurriculumGrade(data.gradeLevel);
+      if (!CURRICULUM_GRADE_LEVELS.includes(gradeLevel)) return;
+      grades[gradeLevel] = {
+        configured: data.subjectsConfigured === true,
+        subjectIds: normalizeCurriculumSubjectIds(data.subjectIds),
+      };
+    });
+    return { schoolYear: year, grades };
+  };
+  return typeof LPSCache === "undefined"
+    ? load()
+    : LPSCache.getOrLoad(`firestore_curriculum_subjects_${year}`, load, 15000);
+}
+
+export async function fsSaveGradeSubjectAssignment(schoolYear, gradeLevel, subjectIds) {
+  const year = fsNormalizeSchoolYear_(schoolYear);
+  const grade = normalizeCurriculumGrade(gradeLevel);
+  if (!/^\d{4}-\d{4}$/.test(year)) throw new Error("A valid school year is required to save curriculum subjects.");
+  if (!CURRICULUM_GRADE_LEVELS.includes(grade)) throw new Error("Choose a supported grade level.");
+  if (!Array.isArray(subjectIds) || subjectIds.some((id) => typeof id !== "string")) {
+    throw new Error("Curriculum subjects must be a list of subject IDs.");
+  }
+  const normalizedSubjectIds = normalizeCurriculumSubjectIds(subjectIds);
+  if (normalizedSubjectIds.length !== new Set(subjectIds).size) {
+    throw new Error("One or more selected subjects are not in the approved subject pool.");
+  }
+  const gradeRef = db.collection(FS_SECTIONS).doc(year).collection("grades").doc(fsAdvisoryKey_(grade));
+  try {
+    await gradeRef.set({
+      schoolYear: year,
+      gradeLevel: grade,
+      subjectsConfigured: true,
+      subjectIds: normalizedSubjectIds,
+      curriculumSchemaVersion: 1,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedBy: auth.currentUser?.uid || "",
+    }, { merge: true });
+  } catch (error) {
+    throw fsError_("Saving curriculum subjects", error);
+  }
+  if (typeof LPSCache !== "undefined") LPSCache.remove(`firestore_curriculum_subjects_${year}`);
+  fsInvalidateReadCaches_(year);
+  return { schoolYear: year, gradeLevel: grade, subjectIds: normalizedSubjectIds, configured: true };
+}
+
 export function fsSectionId_(schoolYear, gradeLevel, section, adviser = "") {
   return `${schoolYear}|${fsAdvisoryKey_(gradeLevel)}|${fsAdvisoryKey_(section)}|${fsAdvisoryKey_(adviser || "unassigned")}`;
 }
@@ -1176,6 +1233,8 @@ if (typeof LPSApi !== "undefined") {
   LPSApi.getSections = fsGetSections;
   LPSApi.saveSection = fsSaveSection;
   LPSApi.deleteSection = fsDeleteSection;
+  LPSApi.getGradeSubjectAssignments = fsGetGradeSubjectAssignments;
+  LPSApi.saveGradeSubjectAssignment = fsSaveGradeSubjectAssignment;
   LPSApi.getSetting = fsGetSetting;
   LPSApi.getEnrollmentData = (schoolYear) => isVisitorSession() ? fsGetPublicEnrollmentData() : fsGetEnrollmentData(schoolYear);
   LPSApi.syncEnrollmentData = fsSyncEnrollmentData;

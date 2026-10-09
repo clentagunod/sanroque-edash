@@ -7,12 +7,12 @@ import { appPageHref, escapeHtml, renderShell } from './shell';
 
 export let auditRecords = [];
 
-export async function initAuditLog() {
+export async function initAuditLog({ renderNavigation = true } = {}) {
   if (!isSchoolAdmin()) {
     window.location.replace(appPageHref("dashboard.html"));
     return;
   }
-  renderShell("audit-log", "Audit Log");
+  if (renderNavigation) renderShell("audit-log", "Audit Log");
   document.getElementById("auditSearch")?.addEventListener("input", renderFilteredAuditLog);
   document.getElementById("auditRefreshBtn")?.addEventListener("click", loadAuditLog);
   await loadAuditLog();

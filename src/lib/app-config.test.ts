@@ -154,7 +154,9 @@ describe('visitor session handling', () => {
       role: 'Teacher',
       teacherAssignments: [
         { schoolYear: '2026-2027', gradeLevel: 'Grade 1', section: 'A' },
+        { schoolYear: '2026-2027', gradeLevel: 'Grade 1', section: 'C' },
         { schoolYear: '2026-2027', gradeLevel: 'Grade 5', section: 'B' },
+        { schoolYear: '2025-2026', gradeLevel: 'Grade 3', section: 'Gold' },
       ],
     }));
 
@@ -163,10 +165,15 @@ describe('visitor session handling', () => {
 
     const scope = document.getElementById('dashboardScope');
     expect(scope?.textContent).toContain('2026-2027');
+    expect(scope?.textContent).toContain('2025-2026');
     expect(scope?.textContent).toContain('Grade 1');
     expect(scope?.textContent).toContain('Section A');
+    expect(scope?.textContent).toContain('Section C');
     expect(scope?.textContent).toContain('Grade 5');
     expect(scope?.textContent).toContain('Section B');
+    expect(scope?.querySelectorAll('.dashboard-coverage-year')).toHaveLength(2);
+    expect(scope?.querySelectorAll('.dashboard-coverage-assignment')).toHaveLength(4);
+    expect(scope?.querySelector('.dashboard-coverage-count')?.textContent).toBe('4 assigned sections');
   });
 
   it('limits teacher learner grade and section choices to their assigned coverage', async () => {

@@ -5,10 +5,11 @@ import { APP_CONFIG, isSchoolAdmin } from './app-config';
 import { clearButtonLoading, escapeHtml, setButtonLoading, showToast } from './shell';
 import { Icon } from './icons';
 import { downloadFirestoreBackup } from './firestore-backup';
+import { CURRICULUM_GRADE_LEVELS, CURRICULUM_SUBJECTS } from './curriculum-subjects';
 
 /* Admin Console: school years and dynamic section directory. */
 
-export const ADMIN_OPTIONS = { years: [], sections: [], selectedYear: "", editingSection: null };
+export const ADMIN_OPTIONS = { years: [], sections: [], selectedYear: "", editingSection: null, curricula: {}, curriculumDrafts: {}, curriculumRequestId: 0, curriculumSaving: false, curriculumLoadError: false };
 
 export function adminOptionEscape(value) {
   return typeof escapeHtml === "function" ? escapeHtml(String(value ?? "")) : String(value ?? "").replace(/[&<>\"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;" }[char]));
@@ -21,11 +22,17 @@ export function adminGradeLabel(value) {
   return match ? `Grade ${match[1]}` : String(value || "Unassigned").trim() || "Unassigned";
 }
 
+function adminCurriculumDraftKey(schoolYear, gradeLevel) {
+  return `${schoolYear}::${gradeLevel}`;
+}
+
 export async function initAdminOptions() {
   if (!isSchoolAdmin()) return;
   document.getElementById("openYearModalBtn")?.addEventListener("click", openAdminYearModal);
   document.getElementById("openSectionModalBtn")?.addEventListener("click", () => openAdminSectionModal());
   document.getElementById("adminYearSelect")?.addEventListener("change", (event) => loadAdminSections(event.target.value));
+  document.getElementById("adminCurriculumGrade")?.addEventListener("change", renderAdminCurriculumEditor);
+  document.getElementById("saveCurriculumSubjectsBtn")?.addEventListener("click", saveAdminCurriculumSubjects);
   document.getElementById("makeCurrentYearBtn")?.addEventListener("click", makeAdminYearCurrent);
   document.getElementById("downloadFirestoreBackupBtn")?.addEventListener("click", downloadFirestoreBackup);
   const backupLink = document.getElementById("openBackupSpreadsheetBtn");
@@ -83,6 +90,111 @@ export async function loadAdminSections(schoolYear) {
     renderAdminSections();
   } catch (error) {
     state.innerHTML = `<span class="state-row error">Unable to load sections: ${adminOptionEscape(error.message)}</span>`;
+  }
+  await loadAdminCurricula(schoolYear);
+}
+
+export async function loadAdminCurricula(schoolYear) {
+  const requestId = ++ADMIN_OPTIONS.curriculumRequestId;
+  const gradeSelect = document.getElementById("adminCurriculumGrade");
+  const state = document.getElementById("adminCurriculumState");
+  if (!gradeSelect || !state) return;
+  gradeSelect.innerHTML = CURRICULUM_GRADE_LEVELS.map((grade) => `<option value="${adminOptionEscape(grade)}">${adminOptionEscape(grade)}</option>`).join("");
+  gradeSelect.disabled = !schoolYear;
+  ADMIN_OPTIONS.curricula = {};
+  ADMIN_OPTIONS.curriculumLoadError = false;
+  state.textContent = schoolYear ? "Loading saved subject assignments…" : "Create a school year before assigning subjects.";
+  state.className = "admin-curriculum-state";
+  if (!schoolYear) {
+    renderAdminCurriculumEditor();
+    return;
+  }
+  try {
+    if (typeof LPSApi.getGradeSubjectAssignments !== "function") {
+      throw new Error("Curriculum subject settings require the Firestore data service.");
+    }
+    const result = await LPSApi.getGradeSubjectAssignments(schoolYear);
+    if (requestId !== ADMIN_OPTIONS.curriculumRequestId) return;
+    ADMIN_OPTIONS.curricula = result?.grades || {};
+    state.textContent = "Choose subjects from the pool below. No subjects are selected by default.";
+    renderAdminCurriculumEditor();
+  } catch (error) {
+    if (requestId !== ADMIN_OPTIONS.curriculumRequestId) return;
+    ADMIN_OPTIONS.curriculumLoadError = true;
+    state.innerHTML = `Unable to load subject assignments: ${adminOptionEscape(error.message || "Unknown error")} <button class="link-btn" id="retryAdminCurriculumBtn" type="button">Retry</button>`;
+    state.classList.add("is-error");
+    document.getElementById("retryAdminCurriculumBtn")?.addEventListener("click", () => loadAdminCurricula(ADMIN_OPTIONS.selectedYear));
+    renderAdminCurriculumEditor();
+  }
+}
+
+export function renderAdminCurriculumEditor() {
+  const grade = document.getElementById("adminCurriculumGrade")?.value || CURRICULUM_GRADE_LEVELS[0];
+  const container = document.getElementById("adminCurriculumSubjects");
+  const summary = document.getElementById("adminCurriculumSummary");
+  const saveButton = document.getElementById("saveCurriculumSubjectsBtn");
+  if (!container || !summary || !saveButton) return;
+  const assignment = ADMIN_OPTIONS.curricula[grade];
+  const draftKey = adminCurriculumDraftKey(ADMIN_OPTIONS.selectedYear, grade);
+  const selectedIds = new Set(ADMIN_OPTIONS.curriculumDrafts[draftKey] || assignment?.subjectIds || []);
+  container.innerHTML = CURRICULUM_SUBJECTS.map(({ id, label }) => `
+    <label class="admin-subject-option">
+      <input type="checkbox" value="${adminOptionEscape(id)}" ${selectedIds.has(id) ? "checked" : ""} ${ADMIN_OPTIONS.curriculumSaving ? "disabled" : ""} />
+      <span>${adminOptionEscape(label)}</span>
+    </label>`).join("");
+  const isConfigured = assignment?.configured === true;
+  const hasDraft = Object.prototype.hasOwnProperty.call(ADMIN_OPTIONS.curriculumDrafts, draftKey);
+  summary.textContent = hasDraft
+    ? `${selectedIds.size} subject${selectedIds.size === 1 ? "" : "s"} selected for ${grade}. Save to apply.`
+    : isConfigured
+    ? `${selectedIds.size} subject${selectedIds.size === 1 ? "" : "s"} assigned to ${grade}.`
+    : `No subjects assigned to ${grade} yet.`;
+  saveButton.disabled = !ADMIN_OPTIONS.selectedYear || ADMIN_OPTIONS.curriculumSaving || ADMIN_OPTIONS.curriculumLoadError;
+  container.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
+    checkbox.addEventListener("change", () => {
+      const checkedIds = [...container.querySelectorAll('input[type="checkbox"]:checked')].map((input) => input.value);
+      ADMIN_OPTIONS.curriculumDrafts[draftKey] = checkedIds;
+      const count = checkedIds.length;
+      summary.textContent = `${count} subject${count === 1 ? "" : "s"} selected for ${grade}. Save to apply.`;
+    });
+  });
+}
+
+export async function saveAdminCurriculumSubjects() {
+  if (ADMIN_OPTIONS.curriculumSaving) return;
+  const schoolYear = ADMIN_OPTIONS.selectedYear;
+  const gradeLevel = document.getElementById("adminCurriculumGrade")?.value;
+  const container = document.getElementById("adminCurriculumSubjects");
+  const state = document.getElementById("adminCurriculumState");
+  if (!schoolYear || !gradeLevel || !container || !state || ADMIN_OPTIONS.curriculumLoadError) return;
+  const subjectIds = [...container.querySelectorAll('input[type="checkbox"]:checked')].map((checkbox) => checkbox.value);
+  const button = document.getElementById("saveCurriculumSubjectsBtn");
+  ADMIN_OPTIONS.curriculumSaving = true;
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Saving…";
+  }
+  state.textContent = `Saving ${gradeLevel} subject assignments…`;
+  state.classList.remove("is-error");
+  renderAdminCurriculumEditor();
+  try {
+    if (typeof LPSApi.saveGradeSubjectAssignment !== "function") {
+      throw new Error("Curriculum subject settings require the Firestore data service.");
+    }
+    const saved = await LPSApi.saveGradeSubjectAssignment(schoolYear, gradeLevel, subjectIds);
+    if (schoolYear !== ADMIN_OPTIONS.selectedYear) return;
+    ADMIN_OPTIONS.curricula[gradeLevel] = { configured: true, subjectIds: saved.subjectIds || subjectIds };
+    delete ADMIN_OPTIONS.curriculumDrafts[adminCurriculumDraftKey(schoolYear, gradeLevel)];
+    state.textContent = `Subject assignments for ${gradeLevel} were saved.`;
+    showToast(`Subject assignments for ${gradeLevel} saved.`, "success");
+  } catch (error) {
+    state.textContent = `Unable to save subject assignments: ${error.message || "Unknown error"}`;
+    state.classList.add("is-error");
+    showToast(error.message || "Unable to save subject assignments.", "error");
+  } finally {
+    ADMIN_OPTIONS.curriculumSaving = false;
+    if (button) button.textContent = "Save grade subjects";
+    renderAdminCurriculumEditor();
   }
 }
 

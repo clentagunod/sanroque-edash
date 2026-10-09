@@ -22,16 +22,62 @@ export function debounce(fn, delay) {
   };
 }
 
+export function initAdminSectionTabs() {
+  const tabs = [
+    document.getElementById("adminStructureTab"),
+    document.getElementById("adminAccessTab"),
+    document.getElementById("adminBackupTab"),
+    document.getElementById("adminUsageTab"),
+    document.getElementById("adminAuditTab"),
+  ];
+  const panels = [
+    document.getElementById("adminStructurePanel"),
+    document.getElementById("adminAccessPanel"),
+    document.getElementById("adminBackupPanel"),
+    document.getElementById("adminUsagePanel"),
+    document.getElementById("adminAuditPanel"),
+  ];
+  if (tabs.some((tab) => !tab) || panels.some((panel) => !panel)) return;
+
+  const activate = (index, moveFocus = false) => {
+    tabs.forEach((tab, tabIndex) => {
+      const isActive = tabIndex === index;
+      tab.setAttribute("aria-selected", String(isActive));
+      tab.tabIndex = isActive ? 0 : -1;
+      panels[tabIndex].hidden = !isActive;
+    });
+    if (moveFocus) tabs[index].focus();
+  };
+
+  tabs.forEach((tab, index) => {
+    tab.addEventListener("click", () => activate(index));
+    tab.addEventListener("keydown", (event) => {
+      let nextIndex;
+      if (event.key === "ArrowRight") nextIndex = (index + 1) % tabs.length;
+      if (event.key === "ArrowLeft") nextIndex = (index + tabs.length - 1) % tabs.length;
+      if (event.key === "Home") nextIndex = 0;
+      if (event.key === "End") nextIndex = tabs.length - 1;
+      if (nextIndex === undefined) return;
+      event.preventDefault();
+      activate(nextIndex, true);
+    });
+  });
+}
+
 export async function initManageUsers() {
   if (!isSchoolAdmin()) {
     window.location.replace(appPageHref("dashboard.html"));
     return;
   }
   renderShell("users", "Admin Console");
+  initAdminSectionTabs();
   ensureUserBulkControls();
   document.getElementById("searchInput").addEventListener("input", debounce((e) => renderUsersTable(filterUsers(e.target.value)), 250));
   wireUserModal();
-  await loadUsers();
+  await Promise.all([
+    loadUsers(),
+    import('./audit-log').then(({ initAuditLog }) => initAuditLog({ renderNavigation: false })),
+  ]);
   // Push updates: an admin adding/editing/removing a user on another device
   // shows up here instantly. The search filter is re-applied, and transient
   // listener errors never replace the last known good directory.
@@ -168,6 +214,7 @@ export function wireUserModal() {
   document.getElementById("userForm").addEventListener("submit", handleUserFormSubmit);
   document.getElementById("u_role").addEventListener("change", toggleTeacherAssignmentFields);
   document.getElementById("u_teacher_year").addEventListener("change", () => loadTeacherAssignmentSections());
+  document.getElementById("teacherAssignmentSearch")?.addEventListener("input", filterTeacherAssignmentSections);
 
   const delBackdrop = document.getElementById("userDeleteModalBackdrop");
   document.getElementById("userDeleteModalCancel").addEventListener("click", closeDeleteUserModal);
@@ -227,9 +274,37 @@ function updateTeacherAssignmentSummary() {
   const sectionContainer = document.getElementById("u_teacher_section");
   const summary = document.getElementById("teacherAssignmentSummary");
   if (!sectionContainer || !summary) return;
-  const selectedCount = sectionContainer.querySelectorAll('input[type="checkbox"]:checked').length;
-  summary.textContent = `${selectedCount} selected`;
+  const boxes = [...sectionContainer.querySelectorAll('input[type="checkbox"]')];
+  const selectedCount = boxes.filter((box) => box.checked).length;
+  const gradeCount = new Set(boxes.filter((box) => box.checked).map((box) => box.dataset.grade)).size;
+  summary.textContent = `${selectedCount} section${selectedCount === 1 ? "" : "s"} selected · ${gradeCount} grade${gradeCount === 1 ? "" : "s"}`;
   summary.classList.toggle("is-active", selectedCount > 0);
+  const selectAllBtn = document.getElementById("teacherAssignmentSelectAll");
+  if (selectAllBtn) {
+    selectAllBtn.textContent = boxes.length && selectedCount === boxes.length ? "Clear all" : "Select all";
+    selectAllBtn.disabled = !boxes.length;
+  }
+}
+
+export function filterTeacherAssignmentSections() {
+  const sectionContainer = document.getElementById("u_teacher_section");
+  const search = document.getElementById("teacherAssignmentSearch");
+  if (!sectionContainer || !search) return;
+  const query = search.value.trim().toLowerCase();
+  let visibleCount = 0;
+  sectionContainer.querySelectorAll(".teacher-assignment-grade-group").forEach((group) => {
+    const options = [...group.querySelectorAll(".teacher-assignment-option")];
+    let groupVisibleCount = 0;
+    options.forEach((option) => {
+      const matches = !query || option.dataset.searchText.includes(query);
+      option.hidden = !matches;
+      if (matches) groupVisibleCount += 1;
+    });
+    group.hidden = groupVisibleCount === 0;
+    visibleCount += groupVisibleCount;
+  });
+  const empty = sectionContainer.querySelector(".teacher-assignment-search-empty");
+  if (empty) empty.hidden = visibleCount > 0;
 }
 
 export async function loadTeacherAssignmentSections(selectedSection = "") {
@@ -241,24 +316,56 @@ export async function loadTeacherAssignmentSections(selectedSection = "") {
     const sections = await LPSApi.getSections(year);
     if (requestToken !== teacherAssignmentLoadToken || year !== document.getElementById("u_teacher_year")?.value) return;
     const selectedAssignments = Array.isArray(selectedSection) ? selectedSection : selectedSection ? [selectedSection] : [];
-    const selectedValues = new Set(selectedAssignments.map((assignment) => encodeURIComponent(JSON.stringify({ gradeLevel: assignment.gradeLevel, section: assignment.section }))));
-
-    sectionContainer.innerHTML = sections.length
-      ? sections.map((section) => {
-        const value = encodeURIComponent(JSON.stringify({ gradeLevel: section.gradeLevel, section: section.section }));
-        const isChecked = selectedValues.has(value) ? "checked" : "";
-        const label = `${escapeHtml(section.gradeLevel)} · ${escapeHtml(section.section)}`;
-        return `
-          <label class="teacher-assignment-option" data-option-value="${value}">
-            <input type="checkbox" value="${value}" ${isChecked} />
-            <span>${label}</span>
-          </label>`;
-      }).join("")
-      : `<span class="empty-state">No sections found for this year.</span>`;
+    const selectedValues = new Set(selectedAssignments.map((assignment) => teacherSectionValue(assignment.gradeLevel, assignment.section)));
+    const groups = new Map();
+    sections.forEach((section) => {
+      const gradeLevel = normalizeTeacherGrade(section.gradeLevel);
+      if (!groups.has(gradeLevel)) groups.set(gradeLevel, []);
+      groups.get(gradeLevel).push(section);
+    });
+    const gradeOrder = (grade) => /^kinder$/i.test(grade) ? 0 : Number(grade.match(/^Grade\s+(\d+)$/i)?.[1] || Number.MAX_SAFE_INTEGER);
+    sectionContainer.innerHTML = groups.size
+      ? [...groups.entries()]
+        .sort(([first], [second]) => gradeOrder(first) - gradeOrder(second) || first.localeCompare(second, undefined, { numeric: true }))
+        .map(([gradeLevel, gradeSections]) => `
+          <section class="teacher-assignment-grade-group">
+            <div class="teacher-assignment-grade-heading">
+              <span>${escapeHtml(gradeLevel)}</span>
+              <small>${gradeSections.length} section${gradeSections.length === 1 ? "" : "s"}</small>
+            </div>
+            <div class="teacher-assignment-section-grid">
+              ${gradeSections
+                .slice()
+                .sort((first, second) => String(first.section).localeCompare(String(second.section), undefined, { numeric: true, sensitivity: "base" }))
+                .map((section) => {
+                  const value = teacherSectionValue(gradeLevel, section.section);
+                  const isChecked = selectedValues.has(value) ? "checked" : "";
+                  const sectionName = String(section.section || "Unassigned").trim();
+                  return `
+                    <label class="teacher-assignment-option" data-search-text="${escapeHtml(`${gradeLevel} ${sectionName}`.toLowerCase())}">
+                      <input type="checkbox" value="${value}" data-grade="${escapeHtml(gradeLevel)}" aria-label="${escapeHtml(`${gradeLevel}, Section ${sectionName}`)}" ${isChecked} />
+                      <span class="teacher-assignment-check" aria-hidden="true"></span>
+                      <span class="teacher-assignment-section-copy"><strong>Section ${escapeHtml(sectionName)}</strong><small>${escapeHtml(gradeLevel)}</small></span>
+                    </label>`;
+                }).join("")}
+            </div>
+          </section>`).join("") + `<div class="teacher-assignment-search-empty" hidden>No grade sections match your search.</div>`
+      : `<div class="teacher-assignment-empty">No sections found for this school year.</div>`;
+    sectionContainer.onchange = (event) => {
+      if (event.target.matches('input[type="checkbox"]')) updateTeacherAssignmentSummary();
+    };
+    filterTeacherAssignmentSections();
     updateTeacherAssignmentSummary();
   } catch (error) {
-    sectionContainer.innerHTML = `<span class="empty-state">Unable to load sections.</span>`;
+    sectionContainer.innerHTML = `<div class="teacher-assignment-empty is-error">Unable to load grade sections: ${escapeHtml(error.message || "Unknown error")}</div>`;
   }
+}
+
+function teacherSectionValue(gradeLevel, section) {
+  return encodeURIComponent(JSON.stringify({
+    gradeLevel: normalizeTeacherGrade(gradeLevel),
+    section: String(section || "").trim(),
+  }));
 }
 
 export async function toggleTeacherAssignmentFields(selected = []) {
@@ -283,10 +390,12 @@ export async function toggleTeacherAssignmentFields(selected = []) {
   }
 
   teacherAssignmentLoadToken += 1;
+  const selectedAssignments = Array.isArray(selected) ? selected : selected ? [selected] : [];
   const years = await LPSApi.getSchoolYears();
   yearSelect.innerHTML = years.map((year) => `<option value="${escapeHtml(year.schoolYear)}">${escapeHtml(year.schoolYear)}</option>`).join("");
-  yearSelect.value = selected.schoolYear || years.find((year) => year.isCurrent)?.schoolYear || years[0]?.schoolYear || "";
-  await loadTeacherAssignmentSections(selected);
+  const selectedYear = selectedAssignments.find((assignment) => assignment.schoolYear)?.schoolYear;
+  yearSelect.value = selectedYear || years.find((year) => year.isCurrent)?.schoolYear || years[0]?.schoolYear || "";
+  await loadTeacherAssignmentSections(selectedAssignments);
 }
 
 export function closeUserModal(force = false) {

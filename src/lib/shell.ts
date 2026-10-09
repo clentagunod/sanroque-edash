@@ -38,7 +38,6 @@ export const NAV_ITEMS = [
   { group: "Utilities", key: "bmi-calculator", label: "BMI Calculator", icon: "calculator", href: "bmi-calculator.html" },
   { group: "Utilities", key: "eduai", label: "EduAI", icon: "sparkles", href: "eduai.html" },
   { group: "Settings", key: "users", label: "Admin Console", icon: "settings", href: "manage-users.html" },
-  { group: "Settings", key: "audit-log", label: "Audit Log", icon: "clipboard", href: "audit-log.html" },
   { group: "Settings", key: "feedback", label: "Feedback", icon: "message", href: "feedback.html" },
 ];
 
@@ -187,7 +186,7 @@ export function renderShell(activeKey, pageTitleForMobile) {
   let lastGroup = null;
   NAV_ITEMS.filter((item) => {
     if (isVisitorSession()) return ["dashboard", "enrollment-data"].includes(item.key);
-    if (["users", "audit-log"].includes(item.key)) return isSchoolAdmin();
+    if (item.key === "users") return isSchoolAdmin();
     if (item.key === "grades") return canViewGradesProfile();
     return true;
   }).map((item) => {

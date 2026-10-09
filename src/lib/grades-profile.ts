@@ -5,6 +5,7 @@ import { requireAuth } from './auth';
 import { getSelectedSchoolYear, initYearSwitcher } from './school-year';
 import { escapeHtml, renderShell, showToast, startExportIndicator } from './shell';
 import { paginationPageNumbers } from './app-config';
+import { CURRICULUM_GRADE_LEVELS, CURRICULUM_SUBJECTS, LEGACY_CURRICULUM_SUBJECT_IDS, curriculumSubjectIdsForGrade, normalizeCurriculumGrade } from './curriculum-subjects';
 
 export let gradesProfiles = [];
 export let gradesRequestId = 0;
@@ -13,11 +14,8 @@ export let gradesSortDirection = "desc";
 export let gradesFilteredProfiles = [];
 export let gradesPage = 1;
 export const GRADES_PAGE_SIZE = 10;
-export const GRADE_SUBJECTS = [
-  ["filipino", "Filipino"], ["english", "English"], ["math", "Math"], ["science", "Science"],
-  ["aralPan", "AralPan"], ["esp", "ESP"], ["music", "Music"], ["arts", "Arts"],
-  ["pe", "PE"], ["health", "Health"], ["epp", "EPP"], ["motherTongue", "Mother Tongue"],
-];
+export let gradesCurriculumAssignments = {};
+export let gradesCurriculumAvailable = false;
 
 export function initGradesProfile() {
   renderShell("grades", "Grades Profile");
@@ -32,19 +30,83 @@ export function initGradesProfile() {
 export async function loadGradesProfiles(schoolYear) {
   const body = document.getElementById("gradesTableBody");
   const requestId = ++gradesRequestId;
-  body.innerHTML = `<tr><td colspan="16" class="state-row">Loading grades...</td></tr>`;
+  gradesCurriculumAssignments = {};
+  gradesCurriculumAvailable = true;
+  renderGradesTableHeader();
+  document.getElementById("gradesCurriculumState").textContent = "";
+  body.innerHTML = `<tr><td colspan="4" class="state-row">Loading grades...</td></tr>`;
   try {
-    const records = await loadGradesProfileData(schoolYear);
+    const [records, curriculum] = await Promise.all([
+      loadGradesProfileData(schoolYear),
+      loadGradesCurriculum(schoolYear),
+    ]);
     if (requestId !== gradesRequestId) return;
-    gradesProfiles = records || [];
+    gradesCurriculumAssignments = curriculum.assignments;
+    gradesCurriculumAvailable = curriculum.available;
+    gradesProfiles = (records || []).map((record) => createGradeProfileFromLearner(
+      record,
+      getGradeSubjectIds(record.gradeLevel),
+    ));
+    updateGradesCurriculumState();
     filterGradesProfiles();
   } catch (error) {
     if (requestId !== gradesRequestId) return;
     gradesProfiles = [];
     gradesFilteredProfiles = [];
     document.getElementById("gradesSummary").innerHTML = "";
-    body.innerHTML = `<tr><td colspan="16" class="state-row error">${escapeHtml(error.message || "Unable to load grades.")}<br><small>Add the subject grade columns to the selected Learners school-year tab.</small></td></tr>`;
+    body.innerHTML = `<tr><td colspan="${4 + getVisibleGradeSubjects().length}" class="state-row error">${escapeHtml(error.message || "Unable to load grades.")}</td></tr>`;
   }
+}
+
+export async function loadGradesCurriculum(schoolYear) {
+  if (typeof LPSApi.getGradeSubjectAssignments !== "function") {
+    return { assignments: {}, available: false };
+  }
+  if (!schoolYear) return { assignments: {}, available: true };
+  const result = await LPSApi.getGradeSubjectAssignments(schoolYear);
+  return { assignments: result?.grades || {}, available: true };
+}
+
+export function gradeSubjectIdsFor(gradeLevel, assignments, curriculumAvailable) {
+  if (!curriculumAvailable) return [...LEGACY_CURRICULUM_SUBJECT_IDS];
+  return curriculumSubjectIdsForGrade(assignments, gradeLevel);
+}
+
+export function getGradeSubjectIds(gradeLevel) {
+  return gradeSubjectIdsFor(gradeLevel, gradesCurriculumAssignments, gradesCurriculumAvailable);
+}
+
+export function gradeSubjectsForFilter(gradeLevel, assignments, curriculumAvailable) {
+  const visibleIds = gradeLevel
+    ? gradeSubjectIdsFor(gradeLevel, assignments, curriculumAvailable)
+    : CURRICULUM_GRADE_LEVELS.flatMap((grade) => gradeSubjectIdsFor(grade, assignments, curriculumAvailable));
+  const visible = new Set(visibleIds);
+  return CURRICULUM_SUBJECTS.filter(({ id }) => visible.has(id));
+}
+
+export function getVisibleGradeSubjects() {
+  const selectedGrade = document.getElementById("gradesGradeFilter")?.value || "";
+  return gradeSubjectsForFilter(selectedGrade, gradesCurriculumAssignments, gradesCurriculumAvailable);
+}
+
+export function updateGradesCurriculumState() {
+  const state = document.getElementById("gradesCurriculumState");
+  if (!state) return;
+  const selectedGrade = document.getElementById("gradesGradeFilter")?.value || "";
+  if (!gradesCurriculumAvailable) {
+    state.textContent = "Showing the existing subject set; grade-specific curriculum assignments are available with Firestore.";
+    return;
+  }
+  if (selectedGrade && getGradeSubjectIds(selectedGrade).length === 0) {
+    state.textContent = `No subjects are assigned to ${normalizeCurriculumGrade(selectedGrade)} for this school year. Configure this grade in Admin Console → School structure.`;
+    return;
+  }
+  const visibleSubjects = getVisibleGradeSubjects();
+  state.textContent = visibleSubjects.length
+    ? selectedGrade
+      ? `Showing subjects assigned to ${normalizeCurriculumGrade(selectedGrade)} for this school year.`
+      : `Showing subjects assigned to any grade for this school year. Select a grade to see its curriculum only.`
+    : "No subjects are assigned for this school year. Configure grade curricula in Admin Console → School structure.";
 }
 
 export async function loadGradesProfileData(schoolYear) {
@@ -66,7 +128,7 @@ export async function loadGradesProfileData(schoolYear) {
   }
 }
 
-export function createGradeProfileFromLearner(learner) {
+export function createGradeProfileFromLearner(learner, subjectIds = LEGACY_CURRICULUM_SUBJECT_IDS) {
   const extra = learner.extra || {};
   const extraByKey = {};
   Object.keys(extra).forEach((key) => { extraByKey[key.toLowerCase().replace(/[^a-z0-9]/g, "")] = extra[key]; });
@@ -77,11 +139,11 @@ export function createGradeProfileFromLearner(learner) {
   };
   let sum = 0;
   let count = 0;
-  GRADE_SUBJECTS.forEach(([key]) => {
+  CURRICULUM_SUBJECTS.forEach(({ id: key }) => {
     const value = learner[key] ?? extra[key] ?? extraByKey[key.toLowerCase()];
     const normalizedValue = value == null ? "" : String(value).trim();
     profile[key] = normalizedValue;
-    if (normalizedValue !== "" && Number.isFinite(Number(normalizedValue))) {
+    if (subjectIds.includes(key) && normalizedValue !== "" && Number.isFinite(Number(normalizedValue))) {
       sum += Number(normalizedValue);
       count += 1;
     }
@@ -100,6 +162,7 @@ export function filterGradesProfiles() {
     return (!search || searchable.includes(search)) && (!grade || enrollmentGradeLabel(record.gradeLevel) === enrollmentGradeLabel(grade)) && (!gender || record.gender === gender) && (!program || record[{ "4Ps": "is4Ps", IP: "isIP", SNED: "isSNED", ARAL: "isARAL", Muslim: "isMuslim" }[program]]);
   });
   renderGradesSummary(gradesFilteredProfiles);
+  updateGradesCurriculumState();
   renderGradesTable(gradesFilteredProfiles);
 }
 
@@ -118,8 +181,11 @@ export function gradeCell(value) {
 
 export function renderGradesTable(records) {
   const body = document.getElementById("gradesTableBody");
+  const subjects = getVisibleGradeSubjects();
+  const colspan = 4 + subjects.length;
+  renderGradesTableHeader(subjects);
   if (!records.length) {
-    body.innerHTML = `<tr><td colspan="16" class="state-row">No grade profiles found.</td></tr>`;
+    body.innerHTML = `<tr><td colspan="${colspan}" class="state-row">No grade profiles found.</td></tr>`;
     renderGradesPagination(0, 1);
     return;
   }
@@ -129,10 +195,17 @@ export function renderGradesTable(records) {
   const pageRecords = sortedRecords.slice((gradesPage - 1) * GRADES_PAGE_SIZE, gradesPage * GRADES_PAGE_SIZE);
   body.innerHTML = pageRecords.map((record) => `<tr>
     <td class="cell-name">${escapeHtml(record.name || "—")}</td><td>${escapeHtml(record.gradeLevel || "—")}</td><td>${escapeHtml(record.section || "—")}</td>
-    ${GRADE_SUBJECTS.map(([key]) => `<td class="grade-cell">${gradeCell(record[key])}</td>`).join("")}
+    ${subjects.map(({ id }) => `<td class="grade-cell">${getGradeSubjectIds(record.gradeLevel).includes(id) ? gradeCell(record[id]) : `<span class="grade-empty">—</span>`}</td>`).join("")}
     <td class="average-cell">${gradeCell(record.average)}</td>
   </tr>`).join("");
   renderGradesPagination(sortedRecords.length, pageCount);
+}
+
+export function renderGradesTableHeader(subjects = getVisibleGradeSubjects()) {
+  const tableHead = document.getElementById("gradesTableHead");
+  if (tableHead) {
+    tableHead.innerHTML = `<th>Learner</th><th>Grade</th><th>Section</th>${subjects.map(({ label }) => `<th>${escapeHtml(label)}</th>`).join("")}<th>Average</th>`;
+  }
 }
 
 export function renderGradesPagination(total, pageCount) {
@@ -175,8 +248,13 @@ export async function exportGradesExcel() {
     await new Promise((resolve) => window.setTimeout(resolve, 0));
     if (indicator.cancelled) return;
   const year = getSelectedSchoolYear() || "Current";
-  const headers = ["Learner ID", "Name", "Grade Level", "Section", ...GRADE_SUBJECTS.map(([, label]) => label), "Average"];
-  const values = gradesFilteredProfiles.slice().sort(compareGradeProfiles).map((record) => [record.learnerId, record.name, record.gradeLevel, record.section, ...GRADE_SUBJECTS.map(([key]) => record[key]), record.average]);
+  const subjects = getVisibleGradeSubjects();
+  const headers = ["Learner ID", "Name", "Grade Level", "Section", ...subjects.map(({ label }) => label), "Average"];
+  const values = gradesFilteredProfiles.slice().sort(compareGradeProfiles).map((record) => [
+    record.learnerId, record.name, record.gradeLevel, record.section,
+    ...subjects.map(({ id }) => getGradeSubjectIds(record.gradeLevel).includes(id) ? record[id] : ""),
+    record.average,
+  ]);
   const cell = (value, isLearnerId = false) => `<td${isLearnerId ? " class=\"text-cell\"" : ""}>${escapeHtml(value == null ? "" : String(value))}</td>`;
   const workbook = `<html><head><meta charset="UTF-8"><style>.text-cell{mso-number-format:'\\@';}</style></head><body><h1>San Roque ES Grades Profile - ${escapeHtml(year)}</h1><table border="1"><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr>${values.map((row) => `<tr>${row.map((value, index) => cell(value, index === 0)).join("")}</tr>`).join("")}</table></body></html>`;
   const link = document.createElement("a");

@@ -8,24 +8,30 @@
         <button class="btn btn-primary" id="exportReadingBtn" style="width:auto;">Export Excel</button>
       </div>
       <div id="yearSwitcherMount"></div>
-      <div class="toolbar profile-filters">
-        <div class="search-box"><input id="readingSearch" type="search" placeholder="Search learner or LRN..." /></div>
-        <select class="select-filter" id="readingPeriodFilter"><option value="">All Assessment Periods</option><option value="bosy">BOSY</option><option value="mosy">MOSY</option><option value="eosy">EOSY</option></select>
-        <select class="select-filter" id="readingGradeFilter"><option value="">All Grade Levels</option><option>Kinder</option><option>Grade 1</option><option>Grade 2</option><option>Grade 3</option><option>Grade 4</option><option>Grade 5</option><option>Grade 6</option></select>
-        <select class="select-filter" id="readingSexFilter"><option value="">All Sex</option><option>Male</option><option>Female</option></select>
-        <select class="select-filter" id="readingStatusFilter"><option value="">All Reading Classifications</option></select>
-      </div>
       <div class="stat-pill-row" id="readingSummary"></div>
-      <div class="profile-period-control"><label for="readingChartView">Chart view</label><select class="select-filter" id="readingChartView"><option value="grade">By Grade</option><option value="summary">Summary</option></select><label for="readingChartPeriod">Assessment period</label><select class="select-filter" id="readingChartPeriod"><option value="bosy">BOSY</option><option value="mosy">MOSY</option><option value="eosy">EOSY</option></select></div>
-      <div class="profile-chart-container">
-        <div id="readingProfileCharts"></div>
-        <div id="readingProfileChartsPhilIri"></div>
+      <div class="profile-section-tabs" role="tablist" aria-label="Reading profile sections">
+        <button type="button" id="readingLearnersTab" role="tab" aria-selected="true" aria-controls="readingLearnersPanel" tabindex="0">Learner</button>
+        <button type="button" id="readingGraphsTab" role="tab" aria-selected="false" aria-controls="readingGraphsPanel" tabindex="-1">Graphs</button>
       </div>
-      <section class="panel">
-        <div class="panel-header"><h3>BOSY, MOSY, and EOSY Reading Profile</h3></div>
+      <section class="panel profile-learners-panel" id="readingLearnersPanel" role="tabpanel" aria-labelledby="readingLearnersTab">
+        <div class="panel-header"><h3>Learners</h3></div>
+        <div class="toolbar profile-filters">
+          <div class="search-box"><input id="readingSearch" type="search" placeholder="Search learner or LRN..." /></div>
+          <select class="select-filter" id="readingPeriodFilter"><option value="">All Assessment Periods</option><option value="bosy">BOSY</option><option value="mosy">MOSY</option><option value="eosy">EOSY</option></select>
+          <select class="select-filter" id="readingGradeFilter"><option value="">All Grade Levels</option><option>Kinder</option><option>Grade 1</option><option>Grade 2</option><option>Grade 3</option><option>Grade 4</option><option>Grade 5</option><option>Grade 6</option></select>
+          <select class="select-filter" id="readingSexFilter"><option value="">All Sex</option><option>Male</option><option>Female</option></select>
+          <select class="select-filter" id="readingStatusFilter"><option value="">All Reading Classifications</option></select>
+        </div>
         <div style="overflow-x:auto;"><table class="data-table reading-profile-table" style="min-width:950px;"><thead><tr><th>Name</th><th>Grade</th><th>Gender</th><th>BOSY<br><small>Reference / Level</small></th><th>MOSY<br><small>Reference / Level</small></th><th>EOSY<br><small>Reference / Level</small></th><th>Change</th></tr></thead><tbody id="readingTableBody"><tr><td colspan="7" class="state-row">Loading reading profiles...</td></tr></tbody></table></div>
+        <div class="pagination"><span id="readingPageInfo">-</span><div class="pager-btns" id="readingPagerBtns"></div></div>
       </section>
-      <div class="pagination"><span id="readingPageInfo">-</span><div class="pager-btns" id="readingPagerBtns"></div></div>
+      <section class="panel profile-graphs-panel" id="readingGraphsPanel" role="tabpanel" aria-labelledby="readingGraphsTab" hidden>
+        <div class="panel-header"><h3>Reading Profile Graphs</h3></div>
+        <div class="profile-chart-container">
+          <div id="readingProfileCharts"></div>
+          <div id="readingProfileChartsPhilIri"></div>
+        </div>
+      </section>
     </main>
   </div>
 </div>

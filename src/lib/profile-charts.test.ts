@@ -1,87 +1,76 @@
 import { describe, expect, it } from 'vitest';
-import { buildProfileGradeDistribution, buildProfileSummaryDistribution, CRLA_CATEGORIES, PHIL_IRI_CATEGORIES, renderProfileDistributionCharts, RMA_CATEGORIES } from './profile-charts';
+import { buildProfileProgressData, CRLA_CATEGORIES, initProfileSectionTabs, PHIL_IRI_CATEGORIES, RMA_CATEGORIES } from './profile-charts';
 
 describe('profile chart distributions', () => {
-  it('calculates selected-period category counts and shares by grade', () => {
-    const grades = ['Grade 1', 'Grade 2', 'Grade 3'];
-    const distribution = buildProfileGradeDistribution([
-      { gradeLevel: 'Grade 1', bosy: 'Grade Ready', mosy: 'Transitioning' },
-      { gradeLevel: 'Grade 1', bosy: 'Transitioning', mosy: 'Transitioning' },
-      { gradeLevel: 'Grade 2', bosy: 'Developing', mosy: 'Unknown' },
-      { gradeLevel: 'Grade 3', bosy: '', mosy: 'High Emerging' },
-    ], CRLA_CATEGORIES, 'bosy', grades);
+  it('switches between profile graph and learner sections with keyboard support', () => {
+    document.body.innerHTML = `
+      <button id="readingGraphsTab" aria-selected="true" tabindex="0"></button>
+      <button id="readingLearnersTab" aria-selected="false" tabindex="-1"></button>
+      <section id="readingGraphsPanel"></section>
+      <section id="readingLearnersPanel" hidden></section>`;
+    initProfileSectionTabs('reading');
 
-    expect(distribution.totals).toEqual({ 'Grade 1': 2, 'Grade 2': 1, 'Grade 3': 0 });
-    expect(distribution.categories[0].counts).toEqual({ 'Grade 1': 1, 'Grade 2': 0, 'Grade 3': 0 });
-    expect(distribution.categories[0].percentages).toEqual({ 'Grade 1': 50, 'Grade 2': 0, 'Grade 3': 0 });
-    expect(distribution.categories[2].counts['Grade 2']).toBe(1);
+    const graphsTab = document.getElementById('readingGraphsTab') as HTMLButtonElement;
+    const learnersTab = document.getElementById('readingLearnersTab') as HTMLButtonElement;
+    const graphsPanel = document.getElementById('readingGraphsPanel') as HTMLElement;
+    const learnersPanel = document.getElementById('readingLearnersPanel') as HTMLElement;
+
+    learnersTab.click();
+    expect(learnersTab.getAttribute('aria-selected')).toBe('true');
+    expect(learnersTab.tabIndex).toBe(0);
+    expect(learnersPanel.hidden).toBe(false);
+    expect(graphsPanel.hidden).toBe(true);
+
+    learnersTab.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    expect(graphsTab.getAttribute('aria-selected')).toBe('true');
+    expect(document.activeElement).toBe(graphsTab);
+    expect(graphsPanel.hidden).toBe(false);
+    expect(learnersPanel.hidden).toBe(true);
   });
 
-  it('counts the legacy Highly-Proficient spelling in the requested High-Proficient band', () => {
-    const distribution = buildProfileGradeDistribution([
-      { gradeLevel: 'Grade 1', bosy: 'Highly-Proficient' },
-      { gradeLevel: 'Grade 1', bosy: 'High-Proficient' },
-    ], RMA_CATEGORIES, 'bosy', ['Grade 1']);
-    const highProficient = distribution.categories.find(({ label }) => label === 'High-Proficient');
-
-    expect(highProficient?.counts['Grade 1']).toBe(2);
-    expect(highProficient?.percentages['Grade 1']).toBe(100);
-  });
-
-  it('aggregates summary counts across all grades for each assessment period', () => {
-    const distribution = buildProfileSummaryDistribution([
+  it('aggregates one category count per grade and assessment period', () => {
+    const data = buildProfileProgressData([
       { gradeLevel: 'Grade 1', bosy: 'Grade Ready', mosy: 'Transitioning', eosy: 'Developing' },
-      { gradeLevel: 'Grade 2', bosy: 'Grade Ready', mosy: '', eosy: 'Developing' },
-      { gradeLevel: 'Grade 3', bosy: '', mosy: 'High Emerging', eosy: '' },
-    ], CRLA_CATEGORIES);
+      { gradeLevel: 'Grade 1', bosy: 'Grade Ready', mosy: 'Transitioning', eosy: '' },
+      { gradeLevel: 'Grade 2', bosy: 'Transitioning', mosy: 'Grade Ready', eosy: 'Developing' },
+      { gradeLevel: 'Grade 4', bosy: 'Grade Ready', mosy: 'Grade Ready', eosy: 'Grade Ready' },
+    ], CRLA_CATEGORIES, ['Grade 1', 'Grade 2', 'Grade 3'], 'Reading');
 
-    expect(distribution.totals).toEqual({ bosy: 2, mosy: 2, eosy: 2 });
-    expect(distribution.categories[0].counts).toEqual({ bosy: 2, mosy: 0, eosy: 0 });
-    expect(distribution.categories[1].counts).toEqual({ bosy: 0, mosy: 1, eosy: 0 });
-    expect(distribution.categories[2].counts).toEqual({ bosy: 0, mosy: 0, eosy: 2 });
+    expect(data).toContainEqual({
+      subject: 'Reading', grade: 'Grade 1', period: 'BOSY', category: 'Grade Ready', count: 2,
+    });
+    expect(data).toContainEqual({
+      subject: 'Reading', grade: 'Grade 1', period: 'MOSY', category: 'Transitioning', count: 2,
+    });
+    expect(data).toContainEqual({
+      subject: 'Reading', grade: 'Grade 2', period: 'EOSY', category: 'Developing', count: 1,
+    });
+    expect(data.find(({ grade, period, category }) => grade === 'Grade 1' && period === 'EOSY' && category === 'Developing')?.count).toBe(1);
+    expect(data).toHaveLength(3 * 3 * CRLA_CATEGORIES.length);
+    expect(data.some(({ grade }) => grade === 'Grade 4')).toBe(false);
   });
 
-  it('counts Phil-IRI Non reader records across all assessment periods', () => {
-    const distribution = buildProfileSummaryDistribution([
+  it('uses RMA categories for math data and normalizes legacy values', () => {
+    const data = buildProfileProgressData([
+      { gradeLevel: 'Grade 1', bosy: 'Highly-Proficient' },
+      { gradeLevel: 'Grade 6', bosy: 'High-Proficient' },
+    ], RMA_CATEGORIES, ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'], 'Math');
+    const highProficient = data.filter(({ period, category }) => period === 'BOSY' && category === 'High-Proficient');
+
+    expect(highProficient.find(({ grade }) => grade === 'Grade 1')?.count).toBe(1);
+    expect(highProficient.find(({ grade }) => grade === 'Grade 6')?.count).toBe(1);
+    expect(data).toHaveLength(6 * 3 * RMA_CATEGORIES.length);
+  });
+
+  it('keeps Phil-IRI on its own category set', () => {
+    const data = buildProfileProgressData([
       { gradeLevel: 'Grade 4', bosy: 'Non reader', mosy: 'Independent', eosy: 'Non reader' },
       { gradeLevel: 'Grade 5', bosy: 'Instructional', mosy: 'Non reader', eosy: 'Frustration' },
-    ], PHIL_IRI_CATEGORIES);
-    const nonReader = distribution.categories.find(({ label }) => label === 'Non reader');
+    ], PHIL_IRI_CATEGORIES, ['Grade 4', 'Grade 5', 'Grade 6'], 'Reading');
+    const nonReader = data.filter(({ category }) => category === 'Non reader');
 
-    expect(nonReader?.counts).toEqual({ bosy: 1, mosy: 1, eosy: 1 });
-  });
-
-  it('renders stacked bars and count trend lines by grade', () => {
-    document.body.innerHTML = '<div id="profile-charts"></div>';
-    renderProfileDistributionCharts('profile-charts', [
-      { gradeLevel: 'Grade 1', bosy: 'Grade Ready' },
-      { gradeLevel: 'Grade 2', bosy: 'Transitioning' },
-      { gradeLevel: 'Grade 3', bosy: 'Developing' },
-    ], 'CRLA', CRLA_CATEGORIES, ['Grade 1', 'Grade 2', 'Grade 3'], 'bosy');
-
-    const chart = document.getElementById('profile-charts');
-    expect(chart?.querySelectorAll('.profile-chart-svg')).toHaveLength(2);
-    expect(chart?.querySelector('.profile-chart-svg')?.getAttribute('aria-label')).toContain('100 percent stacked');
-    expect(chart?.querySelectorAll('polyline')).toHaveLength(CRLA_CATEGORIES.length);
-    expect(chart?.textContent).toContain('Grade Ready');
-    expect(chart?.textContent).toContain('100% stacked by grade');
-    expect(chart?.textContent).toContain('Number of Learners');
-  });
-
-  it('renders Summary with assessment periods on the X axis', () => {
-    document.body.innerHTML = '<div id="profile-summary"></div>';
-    renderProfileDistributionCharts('profile-summary', [
-      { gradeLevel: 'Grade 1', bosy: 'Grade Ready', mosy: 'Transitioning', eosy: 'Developing' },
-      { gradeLevel: 'Grade 2', bosy: 'Transitioning', mosy: 'Grade Ready', eosy: 'Developing' },
-    ], 'CRLA', CRLA_CATEGORIES, ['Grade 1', 'Grade 2', 'Grade 3'], 'summary');
-
-    const chart = document.getElementById('profile-summary');
-    const lineChart = chart?.querySelectorAll('.profile-chart-svg')[1];
-    expect(chart?.textContent).toContain('Summary across BOSY, MOSY, and EOSY');
-    expect(lineChart?.getAttribute('aria-label')).toContain('assessment period');
-    expect(lineChart?.textContent).toContain('BOSY');
-    expect(lineChart?.textContent).toContain('MOSY');
-    expect(lineChart?.textContent).toContain('EOSY');
-    expect(lineChart?.querySelectorAll('polyline')).toHaveLength(CRLA_CATEGORIES.length);
+    expect(nonReader.find(({ grade, period }) => grade === 'Grade 4' && period === 'BOSY')?.count).toBe(1);
+    expect(nonReader.find(({ grade, period }) => grade === 'Grade 5' && period === 'MOSY')?.count).toBe(1);
+    expect(nonReader).toHaveLength(3 * 3);
   });
 });

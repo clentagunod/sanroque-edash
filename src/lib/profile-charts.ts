@@ -1,3 +1,7 @@
+import { createElement } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import LearnerProgressChart, { type LearnerProgressCategory, type LearnerProgressDatum } from '../components/LearnerProgressChart';
+
 export const PROFILE_PERIODS = [
   { key: 'bosy', label: 'BOSY' },
   { key: 'mosy', label: 'MOSY' },
@@ -27,154 +31,101 @@ export const RMA_CATEGORIES = [
   { label: 'High-Proficient', color: '#56845a' },
 ];
 
-export function normalizeProfileCategory(value) {
+export function normalizeProfileCategory(value: unknown) {
   const normalized = String(value ?? '').trim().toLowerCase().replace(/[^a-z]/g, '');
   return normalized === 'highlyproficient' ? 'highproficient' : normalized;
 }
 
-export function buildProfileGradeDistribution(records = [], categories = [], period = 'bosy', gradeLevels = []) {
-  const categoryByKey = new Map(categories.map((category) => [normalizeProfileCategory(category.label), category.label]));
-  const totals = Object.fromEntries(gradeLevels.map((grade) => [grade, 0]));
-  const counts = Object.fromEntries(gradeLevels.map((grade) => [grade, Object.fromEntries(categories.map(({ label }) => [label, 0]))]));
+export function initProfileSectionTabs(prefix: 'reading' | 'math') {
+  const tabs = [
+    document.getElementById(`${prefix}GraphsTab`),
+    document.getElementById(`${prefix}LearnersTab`),
+  ];
+  const panels = [
+    document.getElementById(`${prefix}GraphsPanel`),
+    document.getElementById(`${prefix}LearnersPanel`),
+  ];
+  if (tabs.some((tab) => !tab) || panels.some((panel) => !panel)) return;
+
+  const activate = (index: number, moveFocus = false) => {
+    tabs.forEach((tab, tabIndex) => {
+      const isActive = tabIndex === index;
+      tab.setAttribute('aria-selected', String(isActive));
+      tab.tabIndex = isActive ? 0 : -1;
+      panels[tabIndex].hidden = !isActive;
+    });
+    if (moveFocus) tabs[index].focus();
+  };
+
+  tabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => activate(index));
+    tab.addEventListener('keydown', (event: KeyboardEvent) => {
+      let nextIndex: number | undefined;
+      if (event.key === 'ArrowRight') nextIndex = (index + 1) % tabs.length;
+      if (event.key === 'ArrowLeft') nextIndex = (index + tabs.length - 1) % tabs.length;
+      if (event.key === 'Home') nextIndex = 0;
+      if (event.key === 'End') nextIndex = tabs.length - 1;
+      if (nextIndex === undefined) return;
+      event.preventDefault();
+      activate(nextIndex, true);
+    });
+  });
+}
+
+export function buildProfileProgressData(
+  records: Array<Record<string, unknown>> = [],
+  categories: LearnerProgressCategory[] = [],
+  gradeLevels: string[] = [],
+  subject = '',
+): LearnerProgressDatum[] {
+  const categoryByKey = new Map(categories.map(({ label }) => [normalizeProfileCategory(label), label]));
+  const counts = new Map<string, number>();
 
   records.forEach((record) => {
     const grade = String(record?.gradeLevel ?? '').trim();
-    const label = categoryByKey.get(normalizeProfileCategory(record?.[period]));
-    if (!Object.prototype.hasOwnProperty.call(totals, grade) || !label) return;
-    counts[grade][label] += 1;
-    totals[grade] += 1;
-  });
-
-  return {
-    totals,
-    categories: categories.map(({ label, color }) => ({
-      label,
-      color,
-      counts: Object.fromEntries(gradeLevels.map((grade) => [grade, counts[grade][label]])),
-      percentages: Object.fromEntries(gradeLevels.map((grade) => [
-        grade,
-        totals[grade] ? counts[grade][label] / totals[grade] * 100 : 0,
-      ])),
-    })),
-  };
-}
-
-export function buildProfileSummaryDistribution(records = [], categories = []) {
-  const categoryByKey = new Map(categories.map((category) => [normalizeProfileCategory(category.label), category.label]));
-  const totals = Object.fromEntries(PROFILE_PERIODS.map(({ key }) => [key, 0]));
-  const counts = Object.fromEntries(PROFILE_PERIODS.map(({ key }) => [key, Object.fromEntries(categories.map(({ label }) => [label, 0]))]));
-
-  records.forEach((record) => {
-    PROFILE_PERIODS.forEach(({ key }) => {
-      const label = categoryByKey.get(normalizeProfileCategory(record?.[key]));
-      if (!label) return;
-      counts[key][label] += 1;
-      totals[key] += 1;
+    if (!gradeLevels.includes(grade)) return;
+    PROFILE_PERIODS.forEach(({ key, label }) => {
+      const category = categoryByKey.get(normalizeProfileCategory(record?.[key]));
+      if (!category) return;
+      const countKey = `${grade}\u0000${label}\u0000${category}`;
+      counts.set(countKey, (counts.get(countKey) ?? 0) + 1);
     });
   });
 
-  return {
-    totals,
-    categories: categories.map(({ label, color }) => ({
-      label,
-      color,
-      counts: Object.fromEntries(PROFILE_PERIODS.map(({ key }) => [key, counts[key][label]])),
-      percentages: Object.fromEntries(PROFILE_PERIODS.map(({ key }) => [
-        key,
-        totals[key] ? counts[key][label] / totals[key] * 100 : 0,
-      ])),
-    })),
-  };
+  return gradeLevels.flatMap((grade) => PROFILE_PERIODS.flatMap(({ label: period }) => (
+    categories.map(({ label: category }) => ({
+      subject,
+      grade,
+      period: period as LearnerProgressDatum['period'],
+      category,
+      count: counts.get(`${grade}\u0000${period}\u0000${category}`) ?? 0,
+    }))
+  )));
 }
 
-function escapeHtml(value) {
-  return String(value).replace(/[&<>"']/g, (character) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  })[character]);
-}
+const chartRoots = new WeakMap<HTMLElement, Root>();
 
-function renderStackedBars(distribution, axisItems, title, axisTitle) {
-  const width = Math.max(360, axisItems.length * 112 + 118);
-  const left = 60;
-  const top = 18;
-  const barHeight = 240;
-  const plotWidth = width - left - 18;
-  const slot = plotWidth / axisItems.length;
-  const barWidth = Math.min(58, slot * 0.62);
-  const grid = [0, 25, 50, 75, 100].map((percent) => {
-    const y = top + barHeight * (1 - percent / 100);
-    return `<line x1="${left}" y1="${y}" x2="${width - 18}" y2="${y}" class="profile-chart-gridline"/><text x="${left - 8}" y="${y + 4}" text-anchor="end" class="profile-chart-axis-label">${percent}%</text>`;
-  }).join('');
-  const bars = axisItems.map(({ key, label }, index) => {
-    const x = left + slot * index + (slot - barWidth) / 2;
-    let y = top + barHeight;
-    const segments = distribution.categories.map((category) => {
-      const percent = distribution.totals[key] ? category.counts[key] / distribution.totals[key] * 100 : 0;
-      if (!percent) return '';
-      const height = barHeight * percent / 100;
-      y -= height;
-      const valueLabel = percent >= 13 ? `<text x="${x + barWidth / 2}" y="${y + height / 2 + 3}" text-anchor="middle" class="profile-chart-segment-label">${Math.round(percent)}%</text>` : '';
-      return `<g><rect x="${x}" y="${y}" width="${barWidth}" height="${height}" fill="${category.color}"><title>${escapeHtml(label)} - ${escapeHtml(category.label)}: ${category.counts[key]} learners (${percent.toFixed(1)}%)</title></rect>${valueLabel}</g>`;
-    }).join('');
-    return `<g>${segments}<text x="${x + barWidth / 2}" y="${top + barHeight + 22}" text-anchor="middle" class="profile-chart-axis-label">${escapeHtml(label)}</text><text x="${x + barWidth / 2}" y="${top + barHeight + 39}" text-anchor="middle" class="profile-chart-value-label">${distribution.totals[key]}</text></g>`;
-  }).join('');
-  return `<svg class="profile-chart-svg" viewBox="0 0 ${width} 316" role="img" aria-label="${escapeHtml(title)} 100 percent stacked learner distribution by ${escapeHtml(axisTitle.toLowerCase())}">${grid}${bars}<text x="${left + plotWidth / 2}" y="310" text-anchor="middle" class="profile-chart-axis-title">${escapeHtml(axisTitle)}</text></svg>`;
-}
-
-function niceAxis(maxValue) {
-  if (maxValue <= 0) return { maximum: 5, step: 1 };
-  const roughStep = maxValue / 5;
-  const magnitude = 10 ** Math.floor(Math.log10(roughStep));
-  const fraction = roughStep / magnitude;
-  const step = Math.max(1, (fraction <= 1 ? 1 : fraction <= 2 ? 2 : fraction <= 5 ? 5 : 10) * magnitude);
-  return { maximum: Math.ceil(maxValue / step) * step, step };
-}
-
-function renderTrendLines(distribution, axisItems, title, axisTitle) {
-  const width = Math.max(420, axisItems.length * 112 + 120);
-  const left = 62;
-  const right = width - 24;
-  const top = 22;
-  const bottom = 276;
-  const { maximum, step } = niceAxis(Math.max(...Object.values(distribution.totals).map(Number)));
-  const yPosition = (value) => bottom - value / maximum * (bottom - top);
-  const xPositions = axisItems.map((_, index) => left + (right - left) * (axisItems.length === 1 ? 0.5 : index / (axisItems.length - 1)));
-  const grid = Array.from({ length: Math.floor(maximum / step) + 1 }, (_, index) => index * step).map((value) => {
-    const y = yPosition(value);
-    return `<line x1="${left}" y1="${y}" x2="${right}" y2="${y}" class="profile-chart-gridline"/><text x="${left - 9}" y="${y + 4}" text-anchor="end" class="profile-chart-axis-label">${value}</text>`;
-  }).join('');
-  const axisLabels = axisItems.map(({ label }, index) => `<text x="${xPositions[index]}" y="${bottom + 22}" text-anchor="middle" class="profile-chart-axis-label">${escapeHtml(label)}</text>`).join('');
-  const series = distribution.categories.map((category, categoryIndex) => {
-    const values = axisItems.map(({ key }) => category.counts[key]);
-    const points = values.map((value, index) => ({ x: xPositions[index], y: yPosition(value), value, label: axisItems[index].label }));
-    const path = points.length > 1 ? `<polyline points="${points.map(({ x, y }) => `${x},${y}`).join(' ')}" fill="none" stroke="${category.color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>` : '';
-    const markers = points.map(({ x, y, value, label }) => {
-      const labelOffset = categoryIndex % 2 === 0 ? -9 : 14;
-      return `<g><circle cx="${x}" cy="${y}" r="4.5" fill="${category.color}"><title>${escapeHtml(category.label)} - ${escapeHtml(label)}: ${value} learners</title></circle><text x="${x}" y="${y + labelOffset}" text-anchor="middle" class="profile-chart-point-label" fill="${category.color}">${value}</text></g>`;
-    }).join('');
-    return `${path}${markers}`;
-  }).join('');
-  const legend = distribution.categories.map((category) => `<span class="profile-chart-legend-item"><i style="background:${category.color}"></i>${escapeHtml(category.label)}</span>`).join('');
-  return `<svg class="profile-chart-svg" viewBox="0 0 ${width} 326" role="img" aria-label="${escapeHtml(title)} learner counts by ${escapeHtml(axisTitle.toLowerCase())}">${grid}${axisLabels}${series}<text x="18" y="${(top + bottom) / 2}" text-anchor="middle" class="profile-chart-axis-title" transform="rotate(-90 18 ${(top + bottom) / 2})">Number of Learners</text><text x="${(left + right) / 2}" y="318" text-anchor="middle" class="profile-chart-axis-title">${escapeHtml(axisTitle)}</text></svg><div class="profile-chart-legend">${legend}</div>`;
-}
-
-export function renderProfileDistributionCharts(targetId, records, indicator, categories, gradeLevels, period = 'bosy') {
+export function renderProfileDistributionCharts(
+  targetId: string,
+  records: Array<Record<string, unknown>>,
+  indicator: string,
+  categories: LearnerProgressCategory[],
+  gradeLevels: string[],
+  tabGradeLevels = gradeLevels,
+  subject = indicator,
+) {
   const target = document.getElementById(targetId);
   if (!target) return;
-  const isSummary = period === 'summary';
-  const periodLabel = PROFILE_PERIODS.find(({ key }) => key === period)?.label || 'Summary';
-  const axisItems = isSummary
-    ? PROFILE_PERIODS.map(({ key, label }) => ({ key, label }))
-    : gradeLevels.map((grade) => ({ key: grade, label: grade }));
-  const axisTitle = isSummary ? 'Assessment Period' : 'Grade Level';
-  const distribution = isSummary
-    ? buildProfileSummaryDistribution(records, categories)
-    : buildProfileGradeDistribution(records, categories, period, gradeLevels);
-  target.innerHTML = `<section class="profile-chart-group">
-    <header class="profile-chart-heading"><div><h2>${escapeHtml(indicator)}</h2><p>${isSummary ? 'Summary across BOSY, MOSY, and EOSY' : `${escapeHtml(periodLabel)} assessment results by grade level`}</p></div></header>
-    <div class="profile-visual-grid">
-      <section class="profile-visual"><h3>100% stacked by ${isSummary ? 'period' : 'grade'}</h3>${renderStackedBars(distribution, axisItems, indicator, axisTitle)}</section>
-      <section class="profile-visual"><h3>Learners by category</h3>${renderTrendLines(distribution, axisItems, indicator, axisTitle)}</section>
-    </div>
-  </section>`;
+  let root = chartRoots.get(target);
+  if (!root) {
+    root = createRoot(target);
+    chartRoots.set(target, root);
+  }
+  root.render(createElement(LearnerProgressChart, {
+    title: indicator,
+    data: buildProfileProgressData(records, categories, gradeLevels, subject),
+    categories,
+    gradeLevels,
+    tabGradeLevels,
+  }));
 }

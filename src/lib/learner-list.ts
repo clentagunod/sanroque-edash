@@ -44,6 +44,45 @@ export let learnerModalBusy = false;
 export let learnerMutationBusy = false;
 export let learnerFormInitialSnapshot = "";
 export let learnerListUnsubscribe = null;
+let inspectReturnFocus = null;
+
+const LEARNER_DETAIL_GROUPS = [
+  { title: "Personal information", matches: (key) => ["learnerId", "firstName", "middleName", "lastName", "name", "birthDate", "age", "gender"].includes(key) },
+  { title: "Enrollment", matches: (key) => ["gradeLevel", "section", "schoolYear", "enrollmentStatus", "eosyStatus", "dateAdded"].includes(key) },
+  { title: "Parent / guardian", matches: (key) => ["guardian", "contact"].includes(key) },
+  { title: "Programs", matches: (key) => ["is4Ps", "isIP", "isSNED", "isARAL", "isMuslim"].includes(key) },
+  { title: "Learning assessments", matches: (key) => /^(bosy|mosy|eosy)(crla|philiri|rma)$/i.test(key) },
+  { title: "Nutrition", matches: (key) => /^(bosy|mosy|eosy)(height|weight|nutritionalstatus)$/i.test(key) },
+  { title: "Academic grades", matches: (key) => ["filipino", "english", "math", "science", "aralPan", "esp", "music", "arts", "pe", "health", "epp", "motherTongue"].includes(key) },
+  { title: "Transfer information", matches: (key) => ["transferType", "transferIn", "transferOut", "transferSchool", "transferDate", "transferReason", "transferNotes"].includes(key) },
+];
+
+const LEARNER_DETAIL_LABELS = {
+  learnerId: "Learner ID",
+  firstName: "First name",
+  middleName: "Middle name",
+  lastName: "Last name",
+  name: "Full name",
+  birthDate: "Birthdate",
+  gradeLevel: "Grade level",
+  schoolYear: "School year",
+  enrollmentStatus: "Enrollment status",
+  eosyStatus: "EOSY status",
+  guardian: "Parent / guardian",
+  contact: "Contact number",
+  is4Ps: "4Ps beneficiary",
+  isIP: "IP learner",
+  isSNED: "SNED learner",
+  isARAL: "ARAL tagged",
+  isMuslim: "Muslim learner",
+  aralPan: "AralPan",
+  esp: "ESP",
+  pe: "PE",
+  epp: "EPP",
+  motherTongue: "Mother tongue",
+  transferIn: "Transfer in",
+  transferOut: "Transfer out",
+};
 
 /**
  * Central teacher-coverage helpers. The single source of truth is
@@ -300,6 +339,7 @@ export function collectExtraFieldValues() {
 export function initLearnerListPage({ program, activeNavKey, title }) {
   LL.program = program || "";
   renderShell(activeNavKey, title);
+  ensureLearnerInspectModal();
   applyTeacherLearnerScope();
   const addLearnerButton = document.getElementById("addLearnerBtn");
   if (addLearnerButton && !canManageLearners()) addLearnerButton.remove();
@@ -433,6 +473,164 @@ export function filterDemoLearners() {
   return { items: pageItems, total, page: LL.page, pageSize: LL.pageSize };
 }
 
+export function buildLearnerDetailSections(learner = {}) {
+  const values = { ...learner };
+  const extras = values.extra && typeof values.extra === "object" && !Array.isArray(values.extra)
+    ? values.extra
+    : {};
+  delete values.extra;
+  Object.entries(extras).forEach(([key, value]) => {
+    if (!Object.prototype.hasOwnProperty.call(values, key)) values[key] = value;
+  });
+
+  const entries = Object.entries(values)
+    .filter(([key, value]) => key && !key.startsWith("__") && value !== null && value !== undefined && value !== "")
+    .map(([key, value]) => ({
+      key,
+      label: learnerDetailLabel(key),
+      value: typeof value === "boolean"
+        ? (value ? "Yes" : "No")
+        : Array.isArray(value)
+          ? value.map((item) => String(item)).join(", ")
+          : value && typeof value === "object"
+            ? JSON.stringify(value)
+            : String(value),
+    }));
+
+  const assigned = new Set();
+  const sections = LEARNER_DETAIL_GROUPS.map(({ title, matches }) => {
+    const fields = entries.filter(({ key }) => matches(key));
+    fields.forEach(({ key }) => assigned.add(key));
+    return { title, fields };
+  }).filter(({ fields }) => fields.length);
+  const additionalFields = entries.filter(({ key }) => !assigned.has(key));
+  if (additionalFields.length) sections.push({ title: "Additional information", fields: additionalFields });
+  return sections;
+}
+
+export function learnerDetailLabel(key) {
+  return LEARNER_DETAIL_LABELS[key] || humanizeHeader(key)
+    .replace(/\bBosy\b/gi, "BOSY")
+    .replace(/\bMosy\b/gi, "MOSY")
+    .replace(/\bEosy\b/gi, "EOSY")
+    .replace(/\bCrla\b/gi, "CRLA")
+    .replace(/\bPhil Iri\b/gi, "Phil-IRI")
+    .replace(/\bLrn\b/gi, "LRN");
+}
+
+export function renderLearnerDetailSections(learner = {}) {
+  const sections = buildLearnerDetailSections(learner);
+  if (!sections.length) {
+    return `<div class="learner-inspect-empty">No learner details have been recorded.</div>`;
+  }
+  return sections.map(({ title, fields }) => `
+    <section class="learner-inspect-section">
+      <h4>${escapeHtml(title)}</h4>
+      <dl>${fields.map(({ label, value }) => `
+        <div class="learner-inspect-field">
+          <dt>${escapeHtml(label)}</dt>
+          <dd>${escapeHtml(value)}</dd>
+        </div>`).join("")}
+      </dl>
+    </section>`).join("");
+}
+
+let learnerInspectRequestToken = 0;
+
+export function ensureLearnerInspectModal() {
+  if (document.getElementById("learnerInspectBackdrop")) return;
+  document.body.insertAdjacentHTML("beforeend", `
+    <div class="learner-inspect-backdrop" id="learnerInspectBackdrop" aria-hidden="true">
+      <section class="learner-inspect-dialog" role="dialog" aria-modal="true" aria-labelledby="learnerInspectName" aria-describedby="learnerInspectSubtitle" tabindex="-1">
+        <header class="learner-inspect-header">
+          <div class="learner-inspect-heading">
+            <span class="learner-inspect-avatar" id="learnerInspectAvatar" aria-hidden="true"></span>
+            <div class="learner-inspect-title">
+              <span class="learner-inspect-eyebrow">Learner record</span>
+              <h2 id="learnerInspectName">Learner details</h2>
+              <p id="learnerInspectSubtitle">Complete student information</p>
+            </div>
+          </div>
+          <button type="button" class="learner-inspect-close" id="learnerInspectClose" aria-label="Close learner details">${Icon.x}</button>
+        </header>
+        <div class="learner-inspect-content" id="learnerInspectContent" aria-live="polite"></div>
+        <footer class="learner-inspect-footer">
+          <span>Details are shown in read-only mode.</span>
+          <button type="button" class="btn btn-secondary" id="learnerInspectDone">Close</button>
+        </footer>
+      </section>
+    </div>`);
+
+  const backdrop = document.getElementById("learnerInspectBackdrop");
+  const close = () => closeLearnerInspectModal();
+  document.getElementById("learnerInspectClose").addEventListener("click", close);
+  document.getElementById("learnerInspectDone").addEventListener("click", close);
+  backdrop.addEventListener("click", (event) => { if (event.target === backdrop) close(); });
+  document.addEventListener("keydown", (event) => {
+    if (!backdrop.classList.contains("is-open")) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      close();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const focusable = [...backdrop.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')];
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
+}
+
+export function closeLearnerInspectModal() {
+  const backdrop = document.getElementById("learnerInspectBackdrop");
+  if (!backdrop) return;
+  learnerInspectRequestToken += 1;
+  backdrop.classList.remove("is-open");
+  backdrop.setAttribute("aria-hidden", "true");
+  inspectReturnFocus?.focus();
+  inspectReturnFocus = null;
+}
+
+export async function openLearnerInspectModal(learnerId, rowLearner = {}) {
+  const backdrop = document.getElementById("learnerInspectBackdrop");
+  if (!backdrop) return;
+  const token = ++learnerInspectRequestToken;
+  inspectReturnFocus = document.activeElement;
+  backdrop.classList.add("is-open");
+  backdrop.setAttribute("aria-hidden", "false");
+  document.getElementById("learnerInspectName").textContent = [rowLearner.firstName, rowLearner.middleName, rowLearner.lastName].filter(Boolean).join(" ") || "Learner details";
+  document.getElementById("learnerInspectSubtitle").textContent = `LRN ${learnerId} · ${LL.loadedSchoolYear || getSelectedSchoolYear() || "School year not specified"}`;
+  document.getElementById("learnerInspectAvatar").textContent = `${String(rowLearner.firstName || "").trim().charAt(0)}${String(rowLearner.lastName || "").trim().charAt(0)}`.toUpperCase() || "L";
+  const content = document.getElementById("learnerInspectContent");
+  content.innerHTML = `<div class="learner-inspect-loading"><span class="inline-spinner" aria-hidden="true"></span><span>Loading complete learner record…</span></div>`;
+  document.getElementById("learnerInspectClose").focus();
+
+  try {
+    let learner = rowLearner;
+    const schoolYear = getSelectedSchoolYear();
+    if (!isVisitorSession() && schoolYear && (isSheetsApiConfigured() || typeof fsGetLearner === "function")) {
+      const fullRecord = await LPSApi.getLearner(learnerId, schoolYear);
+      if (!fullRecord) throw new Error("The learner record was not found for the selected school year.");
+      learner = { ...rowLearner, ...fullRecord };
+    }
+    if (token !== learnerInspectRequestToken || !backdrop.classList.contains("is-open")) return;
+    document.getElementById("learnerInspectName").textContent = [learner.firstName, learner.middleName, learner.lastName].filter(Boolean).join(" ") || learner.name || "Learner details";
+    document.getElementById("learnerInspectSubtitle").textContent = `LRN ${learner.learnerId || learnerId} · ${learner.gradeLevel || "Grade not specified"}${learner.section ? ` · Section ${learner.section}` : ""} · ${LL.loadedSchoolYear || schoolYear || "School year not specified"}`;
+    document.getElementById("learnerInspectAvatar").textContent = `${String(learner.firstName || learner.name || "").trim().charAt(0)}${String(learner.lastName || "").trim().charAt(0)}`.toUpperCase() || "L";
+    content.innerHTML = renderLearnerDetailSections(learner);
+  } catch (error) {
+    if (token !== learnerInspectRequestToken || !backdrop.classList.contains("is-open")) return;
+    content.innerHTML = `<div class="learner-inspect-error"><strong>Unable to load the complete learner record.</strong><span>${escapeHtml(error.message || "Please try again.")}</span></div>${renderLearnerDetailSections(rowLearner)}`;
+  }
+}
+
 export function renderLearnersTable(items) {
   const tbody = document.getElementById("learnersTableBody");
   const hasManagementColumn = canManageLearners();
@@ -456,6 +654,7 @@ export function renderLearnersTable(items) {
       <td>${escapeHtml(formatAppDate(l.dateAdded))}</td>
       <td>
         <div class="row-actions">
+          <button class="icon-btn inspect-learner-btn" type="button" title="Inspect learner" aria-label="Inspect ${escapeHtml(l.firstName)} ${escapeHtml(l.lastName)}" data-inspect="${escapeHtml(l.learnerId)}">${Icon.eye}</button>
           ${canManageLearners() ? `<button class="icon-btn" title="Edit" data-edit="${escapeHtml(l.learnerId)}">${Icon.edit}</button><button class="icon-btn danger" title="Remove" data-delete="${escapeHtml(l.learnerId)}" data-name="${escapeHtml(l.firstName)} ${escapeHtml(l.lastName)}">${Icon.trash}</button>` : ""}
         </div>
       </td>
@@ -473,6 +672,13 @@ export function renderLearnersTable(items) {
       learnerModalBusy = false;
       showToast(error.message || "Unable to load learner.", "error");
     })));
+  tbody.querySelectorAll("[data-inspect]").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      const learner = items.find((item) => String(item.learnerId) === btn.getAttribute("data-inspect"));
+      openLearnerInspectModal(btn.getAttribute("data-inspect"), learner || {}).catch((error) => {
+        showToast(error.message || "Unable to inspect learner.", "error");
+      });
+    }));
   tbody.querySelectorAll("[data-delete]").forEach((btn) =>
     btn.addEventListener("click", () => openDeleteModal(btn.getAttribute("data-delete"), btn.getAttribute("data-name"))));
   updateLearnerBulkControls();

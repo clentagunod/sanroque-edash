@@ -8,21 +8,27 @@
         <button class="btn btn-primary" id="exportMathBtn" style="width:auto;">Export Excel</button>
       </div>
       <div id="yearSwitcherMount"></div>
-      <div class="toolbar profile-filters">
-        <div class="search-box"><input id="mathSearch" type="search" placeholder="Search learner or LRN..." /></div>
-        <select class="select-filter" id="mathPeriodFilter"><option value="">All Assessment Periods</option><option value="bosy">BOSY</option><option value="mosy">MOSY</option><option value="eosy">EOSY</option></select>
-        <select class="select-filter" id="mathSexFilter"><option value="">All Sex</option><option>Male</option><option>Female</option></select>
-        <select class="select-filter" id="mathGradeFilter"><option value="">All Grade Levels</option><option>Grade 1</option><option>Grade 2</option><option>Grade 3</option><option>Grade 4</option><option>Grade 5</option><option>Grade 6</option></select>
-        <select class="select-filter" id="mathStatusFilter"><option value="">All Math Classifications</option><option>Not Proficient</option><option>Low Proficient</option><option>Nearly-Proficient</option><option>Proficient</option><option>High-Proficient</option></select>
-      </div>
       <div class="stat-pill-row" id="mathSummary"></div>
-      <div class="profile-period-control"><label for="mathChartView">Chart view</label><select class="select-filter" id="mathChartView"><option value="grade">By Grade</option><option value="summary">Summary</option></select><label for="mathChartPeriod">Assessment period</label><select class="select-filter" id="mathChartPeriod"><option value="bosy">BOSY</option><option value="mosy">MOSY</option><option value="eosy">EOSY</option></select></div>
-      <div id="mathProfileCharts" class="profile-chart-container"></div>
-      <section class="panel">
-        <div class="panel-header"><h3>BOSY, MOSY, and EOSY RMA Profile</h3></div>
+      <div class="profile-section-tabs" role="tablist" aria-label="Math profile sections">
+        <button type="button" id="mathLearnersTab" role="tab" aria-selected="true" aria-controls="mathLearnersPanel" tabindex="0">Learner</button>
+        <button type="button" id="mathGraphsTab" role="tab" aria-selected="false" aria-controls="mathGraphsPanel" tabindex="-1">Graphs</button>
+      </div>
+      <section class="panel profile-learners-panel" id="mathLearnersPanel" role="tabpanel" aria-labelledby="mathLearnersTab">
+        <div class="panel-header"><h3>Learners</h3></div>
+        <div class="toolbar profile-filters">
+          <div class="search-box"><input id="mathSearch" type="search" placeholder="Search learner or LRN..." /></div>
+          <select class="select-filter" id="mathPeriodFilter"><option value="">All Assessment Periods</option><option value="bosy">BOSY</option><option value="mosy">MOSY</option><option value="eosy">EOSY</option></select>
+          <select class="select-filter" id="mathSexFilter"><option value="">All Sex</option><option>Male</option><option>Female</option></select>
+          <select class="select-filter" id="mathGradeFilter"><option value="">All Grade Levels</option><option>Grade 1</option><option>Grade 2</option><option>Grade 3</option><option>Grade 4</option><option>Grade 5</option><option>Grade 6</option></select>
+          <select class="select-filter" id="mathStatusFilter"><option value="">All Math Classifications</option><option>Not Proficient</option><option>Low Proficient</option><option>Nearly-Proficient</option><option>Proficient</option><option>High-Proficient</option></select>
+        </div>
         <div style="overflow-x:auto;"><table class="data-table reading-profile-table" style="min-width:950px;"><thead><tr><th>Name</th><th>Grade</th><th>Gender</th><th>BOSY<br><small>RMA level</small></th><th>MOSY<br><small>RMA level</small></th><th>EOSY<br><small>RMA level</small></th><th>Change</th></tr></thead><tbody id="mathTableBody"><tr><td colspan="7" class="state-row">Loading math profiles...</td></tr></tbody></table></div>
+        <div class="pagination"><span id="mathPageInfo">-</span><div class="pager-btns" id="mathPagerBtns"></div></div>
       </section>
-      <div class="pagination"><span id="mathPageInfo">-</span><div class="pager-btns" id="mathPagerBtns"></div></div>
+      <section class="panel profile-graphs-panel" id="mathGraphsPanel" role="tabpanel" aria-labelledby="mathGraphsTab" hidden>
+        <div class="panel-header"><h3>Math Profile Graphs</h3></div>
+        <div id="mathProfileCharts" class="profile-chart-container"></div>
+      </section>
     </main>
   </div>
 </div>

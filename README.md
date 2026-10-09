@@ -9,7 +9,7 @@ San Roque Elementary School's realtime enrollment and school-management dashboar
 - Program views for 4Ps, IP, SNED, ARAL, and Muslim learners.
 - School-year and section management, including teacher/adviser assignments.
 - Enrollment summaries and dashboard statistics.
-- Reading profiles, math profiles, grades profiles, nutritional status, dropout, and transfer reports.
+- Reading profiles, math profiles, grades profiles, nutritional status, dropout, and transfer reports, including grade-tabbed BOSY/MOSY/EOSY category trends as percentages alongside 100% stacked distributions for Reading and Math.
 - EOSY reporting, data exports, utilities, feedback, and audit logging.
 - Visitor mode for limited dashboard and enrollment-summary access.
 - Live Firestore updates for learners, users, sections, school years, and public dashboard statistics.

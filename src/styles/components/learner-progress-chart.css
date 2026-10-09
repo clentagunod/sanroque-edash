@@ -1,0 +1,98 @@
+.learner-progress-chart { position: relative; min-width: 0; }
+.profile-graphs-panel { margin-bottom: 16px; }
+.profile-graphs-panel > .profile-chart-container { margin: 10px 20px 20px; }
+.profile-learners-panel { overflow: hidden; }
+.profile-learners-panel > .panel-header { padding: 20px 20px 12px; }
+.profile-learners-panel > .panel-header h3 { margin: 0; }
+.profile-learners-panel > .toolbar.profile-filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) repeat(4, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 10px;
+  margin: 0;
+  padding: 0 20px 18px;
+}
+.profile-learners-panel > .toolbar.profile-filters .search-box { width: 100%; min-width: 0; }
+.profile-learners-panel > .toolbar.profile-filters .search-box input,
+.profile-learners-panel > .toolbar.profile-filters .select-filter { width: 100%; min-width: 0; min-height: 42px; }
+.profile-learners-panel > .pagination { margin: 0; padding: 14px 20px 18px; }
+.profile-section-tabs { display: flex; gap: 4px; margin: 0 0 12px; padding: 4px; border: 1px solid var(--line-200); border-radius: var(--radius-lg); background: var(--bg-card); width: fit-content; }
+.profile-section-tabs button { min-height: 36px; padding: 8px 18px; border: 0; border-radius: calc(var(--radius-lg) - 4px); background: transparent; color: var(--ink-700); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.profile-section-tabs button[aria-selected="true"] { background: var(--blue-600); color: #fff; }
+.profile-section-tabs button:focus-visible { outline: 3px solid var(--blue-100); outline-offset: 2px; }
+.profile-section-tabs + [role="tabpanel"][hidden] { display: none !important; }
+.learner-progress-heading { margin: 0 0 12px; }
+.learner-progress-heading h2 { margin: 0 0 4px; color: var(--ink-900); font-size: 17px; }
+.learner-progress-heading p { margin: 0; color: var(--ink-500); font-size: 12px; }
+.learner-progress-tabs { display: flex; flex-wrap: wrap; gap: 7px; margin: 0 0 14px; }
+.learner-progress-tabs button {
+  min-height: 34px;
+  padding: 7px 13px;
+  border: 1px solid var(--line-200);
+  border-radius: var(--radius-pill);
+  background: var(--bg-card);
+  color: var(--ink-700);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.learner-progress-tabs button:hover { border-color: var(--blue-600); }
+.learner-progress-tabs button.is-active { border-color: var(--blue-600); background: var(--blue-600); color: #fff; }
+.learner-progress-tabs button:focus-visible { outline: 3px solid var(--blue-100); outline-offset: 2px; }
+.learner-progress-visuals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.learner-progress-visual { min-width: 0; }
+.learner-progress-visual h3 { margin: 0 0 10px; color: var(--ink-700); font-size: 13px; }
+.learner-progress-visual rect[tabindex],
+.learner-progress-visual circle[tabindex] { cursor: pointer; }
+.learner-progress-visual rect[tabindex]:focus-visible,
+.learner-progress-visual circle[tabindex]:focus-visible { outline: 2px solid var(--ink-900); outline-offset: 2px; }
+.learner-progress-tooltip {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  width: min(260px, calc(100% - 16px));
+  flex-direction: column;
+  gap: 4px;
+  padding: 11px 13px;
+  border: 1px solid var(--line-200);
+  border-left: 3px solid var(--tooltip-accent);
+  border-radius: 10px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-pop);
+  color: var(--ink-700);
+  font-size: 11px;
+  line-height: 1.4;
+  pointer-events: none;
+}
+.learner-progress-tooltip strong { margin-bottom: 2px; color: var(--ink-900); font-size: 12px; }
+.learner-progress-empty { margin: 0 0 12px; color: var(--ink-500); font-size: 12px; }
+.learner-progress-summary { margin-top: 18px; padding: 16px; border: 1px solid var(--line-200); border-radius: var(--radius-lg); background: var(--bg-app); }
+.learner-progress-summary > header { margin-bottom: 12px; }
+.learner-progress-summary > header h3 { margin: 0 0 3px; color: var(--ink-900); font-size: 15px; }
+.learner-progress-summary > header p { margin: 0; color: var(--ink-500); font-size: 11px; }
+.learner-progress-summary-periods { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.learner-progress-summary-card { display: flex; min-width: 0; flex-direction: column; gap: 3px; padding: 12px; border: 1px solid var(--line-200); border-radius: var(--radius-md); background: var(--bg-card); }
+.learner-progress-summary-period { color: var(--ink-500); font-size: 10px; font-weight: 800; letter-spacing: .04em; }
+.learner-progress-summary-card > strong { color: var(--ink-900); font-size: 20px; line-height: 1.2; }
+.learner-progress-summary-caption { color: var(--ink-500); font-size: 10px; }
+.learner-progress-summary-leader { margin-top: 5px; color: var(--ink-700); font-size: 11px; font-weight: 700; overflow-wrap: anywhere; }
+.learner-progress-summary-insights { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 10px; }
+.learner-progress-summary-insights p { display: flex; align-items: baseline; gap: 5px; margin: 0; color: var(--ink-500); font-size: 11px; line-height: 1.5; }
+.learner-progress-summary-insights strong { color: var(--ink-900); }
+.learner-progress-summary-insights p > span { display: inline-block; width: 8px; height: 8px; flex: 0 0 8px; align-self: center; border-radius: 50%; }
+@media (max-width: 1100px) {
+  .profile-learners-panel > .toolbar.profile-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .profile-learners-panel > .toolbar.profile-filters .search-box { grid-column: 1 / -1; }
+}
+@media (max-width: 780px) {
+  .learner-progress-visuals { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .learner-progress-tooltip { font-size: 10px; }
+}
+@media (max-width: 560px) {
+  .profile-learners-panel > .panel-header { padding: 16px 16px 10px; }
+  .profile-learners-panel > .toolbar.profile-filters { grid-template-columns: minmax(0, 1fr); padding: 0 16px 16px; }
+  .profile-learners-panel > .toolbar.profile-filters .search-box { grid-column: auto; }
+  .learner-progress-summary { padding: 12px; }
+  .learner-progress-summary-periods { grid-template-columns: minmax(0, 1fr); }
+}

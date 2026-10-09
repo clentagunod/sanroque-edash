@@ -5,7 +5,7 @@ import { requireAuth } from './auth';
 import { paginationPageNumbers } from './app-config';
 import { getSelectedSchoolYear, initYearSwitcher } from './school-year';
 import { debounce } from './learner-list';
-import { CRLA_CATEGORIES, normalizeProfileCategory, PHIL_IRI_CATEGORIES, renderProfileDistributionCharts } from './profile-charts';
+import { CRLA_CATEGORIES, initProfileSectionTabs, normalizeProfileCategory, PHIL_IRI_CATEGORIES, renderProfileDistributionCharts } from './profile-charts';
 
 export let readingProfiles = [];
 export let readingPage = 1;
@@ -30,11 +30,10 @@ export function updateReadingClassificationOptions() {
 
 export async function initReadingProfiles() {
   renderShell("reading", "Reading Profile");
+  initProfileSectionTabs("reading");
   document.getElementById("exportReadingBtn").addEventListener("click", exportReadingExcel);
   updateReadingClassificationOptions();
   ["readingPeriodFilter", "readingGradeFilter", "readingSexFilter", "readingStatusFilter"].forEach((id) => document.getElementById(id)?.addEventListener("change", (event) => { if (id === "readingGradeFilter") { readingGrade = event.target.value; updateReadingClassificationOptions(); } readingPage = 1; renderFilteredReading(); }));
-  document.getElementById("readingChartPeriod")?.addEventListener("change", renderFilteredReading);
-  document.getElementById("readingChartView")?.addEventListener("change", renderFilteredReading);
   document.getElementById("readingSearch")?.addEventListener("input", debounce((event) => { readingSearch = event.target.value.trim().toLowerCase(); readingPage = 1; renderFilteredReading(); }, 200));
   await initYearSwitcher(loadReadingProfiles);
 }
@@ -75,13 +74,24 @@ export function renderFilteredReading() {
 export function renderReadingCharts(records = []) {
   const crlaRecords = records.filter((record) => /^Grade [1-3]$/.test(String(record?.gradeLevel || "").trim()));
   const philIriRecords = records.filter((record) => /^Grade [4-6]$/.test(String(record?.gradeLevel || "").trim()));
-  const period = document.getElementById("readingChartPeriod")?.value || "bosy";
-  const view = document.getElementById("readingChartView")?.value || "grade";
-  const chartPeriod = view === "summary" ? "summary" : period;
-  const periodControl = document.getElementById("readingChartPeriod");
-  if (periodControl) periodControl.disabled = view === "summary";
-  renderProfileDistributionCharts("readingProfileCharts", crlaRecords, "CRLA (Grades 1-3)", CRLA_CATEGORIES, ["Grade 1", "Grade 2", "Grade 3"], chartPeriod);
-  renderProfileDistributionCharts("readingProfileChartsPhilIri", philIriRecords, "Phil-IRI (Grades 4-6)", PHIL_IRI_CATEGORIES, ["Grade 4", "Grade 5", "Grade 6"], chartPeriod);
+  renderProfileDistributionCharts(
+    "readingProfileCharts",
+    crlaRecords,
+    "CRLA",
+    CRLA_CATEGORIES,
+    ["Grade 1", "Grade 2", "Grade 3"],
+    ["Grade 1", "Grade 2", "Grade 3"],
+    "Reading",
+  );
+  renderProfileDistributionCharts(
+    "readingProfileChartsPhilIri",
+    philIriRecords,
+    "Phil-IRI",
+    PHIL_IRI_CATEGORIES,
+    ["Grade 4", "Grade 5", "Grade 6"],
+    ["Grade 4", "Grade 5", "Grade 6"],
+    "Reading",
+  );
 }
 
 export function renderProfilePagination(prefix, total, page, onPageChange) {

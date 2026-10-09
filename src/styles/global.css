@@ -9,3 +9,5 @@
 @import './base/tokens.css';
 @import './shell.css';
 @import './responsive.css';
+@import './components/learner-progress-chart.css';
+@import './components/learner-inspector.css';

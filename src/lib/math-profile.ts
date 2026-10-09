@@ -6,7 +6,7 @@ import { paginationPageNumbers } from './app-config';
 import { getSelectedSchoolYear, initYearSwitcher } from './school-year';
 import { debounce } from './learner-list';
 import { isTeacher } from './app-config';
-import { normalizeProfileCategory, renderProfileDistributionCharts, RMA_CATEGORIES } from './profile-charts';
+import { initProfileSectionTabs, normalizeProfileCategory, renderProfileDistributionCharts, RMA_CATEGORIES } from './profile-charts';
 
 export let mathProfiles = [];
 export let mathPage = 1;
@@ -15,12 +15,11 @@ export const MATH_PAGE_SIZE = 10;
 
 export async function initMathProfiles() {
   renderShell("math", "Math Profile");
+  initProfileSectionTabs("math");
   document.getElementById("exportMathBtn").addEventListener("click", exportMathExcel);
   const gradeFilter = document.getElementById("mathGradeFilter");
   if (isTeacher()) gradeFilter?.remove();
   ["mathPeriodFilter", "mathSexFilter", "mathStatusFilter", "mathGradeFilter"].forEach((id) => document.getElementById(id)?.addEventListener("change", () => { mathPage = 1; renderFilteredMath(); }));
-  document.getElementById("mathChartPeriod")?.addEventListener("change", renderFilteredMath);
-  document.getElementById("mathChartView")?.addEventListener("change", renderFilteredMath);
   document.getElementById("mathSearch")?.addEventListener("input", debounce((event) => { mathSearch = event.target.value.trim().toLowerCase(); mathPage = 1; renderFilteredMath(); }, 200));
   await initYearSwitcher(loadMathProfiles);
 }
@@ -59,12 +58,15 @@ export function renderFilteredMath() {
 }
 
 export function renderMathCharts(records = mathProfiles) {
-  const period = document.getElementById("mathChartPeriod")?.value || "bosy";
-  const view = document.getElementById("mathChartView")?.value || "grade";
-  const chartPeriod = view === "summary" ? "summary" : period;
-  const periodControl = document.getElementById("mathChartPeriod");
-  if (periodControl) periodControl.disabled = view === "summary";
-  renderProfileDistributionCharts("mathProfileCharts", records, "RMA (Grades 1-6)", RMA_CATEGORIES, ["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6"], chartPeriod);
+  renderProfileDistributionCharts(
+    "mathProfileCharts",
+    records,
+    "RMA",
+    RMA_CATEGORIES,
+    ["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6"],
+    ["Grade 1", "Grade 2", "Grade 3"],
+    "Math",
+  );
 }
 
 export function renderProfilePagination(prefix, total, page, onPageChange) {
